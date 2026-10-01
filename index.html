@@ -1,0 +1,5102 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <script type="importmap">
+      { "imports": {} }
+    </script>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#05071c" />
+    <title>Gem Drift</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cabin:ital,wght@0,400..700;1,400..700&family=Damion&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/@remix-gg/sdk@0.17.0/dist/index.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #04061c;
+        overscroll-behavior: none;
+        user-select: none;
+        -webkit-user-select: none;
+        font-family:
+          "Cabin",
+          "Damion",
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+      }
+      #game {
+        position: fixed;
+        inset: 0;
+        display: block;
+        touch-action: none;
+      }
+      /* all HUD readouts live in one rounded box; the pause button sits beside it */
+      #hud {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        padding: 10px 12px 0;
+        pointer-events: none;
+        z-index: 7;
+        flex-wrap: wrap;
+        row-gap: 8px;
+      }
+      #hudBox {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        max-width: calc(100% - 64px);
+        background: rgba(13, 18, 48, 0.85);
+        border: 1px solid rgba(122, 150, 255, 0.35);
+        border-radius: 16px;
+        padding: 4px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+      }
+      .seg {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        background: rgba(122, 150, 255, 0.1);
+        border-radius: 11px;
+        padding: 6px 11px;
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.4px;
+        color: #dfe6ff;
+        white-space: nowrap;
+      }
+      #gemChip {
+        color: #8ff7ff;
+        background: rgba(111, 247, 255, 0.1);
+      }
+      #scoreChip {
+        color: #ffd166;
+        background: rgba(255, 209, 102, 0.1);
+        font-variant-numeric: tabular-nums;
+      }
+      #scoreChip.bump {
+        animation: chipBump 0.35s ease;
+      }
+      @keyframes chipBump {
+        0% {
+          transform: scale(1);
+        }
+        40% {
+          transform: scale(1.16);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+      #gemHudImg {
+        width: 15px;
+        height: 15px;
+        object-fit: contain;
+        pointer-events: none;
+        filter: drop-shadow(0 0 4px rgba(111, 247, 255, 0.55));
+      }
+      #timerChip {
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 1px;
+        color: #8ff7ff;
+        background: rgba(111, 247, 255, 0.12);
+        transition: opacity 0.25s ease;
+      }
+      #timerChip.dim {
+        opacity: 0.42;
+      }
+      #timerChip.low {
+        color: #ff8296;
+        background: rgba(255, 90, 126, 0.16);
+        animation: lowPulse 1s ease-in-out infinite;
+      }
+      @keyframes lowPulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+      /* shield chip: only visible while the shield power-up is active */
+      #shieldChip {
+        display: none;
+        color: #ffd166;
+        background: rgba(255, 209, 102, 0.14);
+        font-variant-numeric: tabular-nums;
+        box-shadow: 0 0 10px rgba(255, 209, 102, 0.35);
+      }
+      #shieldChip.show {
+        display: flex;
+        animation: shieldIn 0.3s ease both;
+      }
+      /* shield running out: distinct from the timer's low state — the chip
+   flashes red with a hard glow and a scale throb (the timer only fades
+   its opacity), so the two warnings never read the same */
+      #shieldChip.low {
+        color: #fff;
+        background: rgba(255, 90, 126, 0.3);
+        border: 1px solid rgba(255, 130, 150, 0.95);
+        box-shadow: 0 0 16px rgba(255, 90, 126, 0.9);
+        animation: shieldLow 0.5s ease-in-out infinite;
+      }
+      @keyframes shieldLow {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.14);
+        }
+      }
+      #shieldHudImg {
+        width: 15px;
+        height: 15px;
+        object-fit: contain;
+        pointer-events: none;
+        filter: drop-shadow(0 0 4px rgba(255, 209, 102, 0.6));
+      }
+      @keyframes shieldIn {
+        0% {
+          transform: scale(0.7);
+          opacity: 0;
+        }
+        100% {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+      #banner {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        z-index: 6;
+        opacity: 0;
+        text-align: center;
+        padding: 0 24px;
+      }
+      #banner.show {
+        animation: bIn 1.6s ease both;
+      }
+      @keyframes bIn {
+        0% {
+          opacity: 0;
+          transform: scale(0.86);
+        }
+        12% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        80% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        100% {
+          opacity: 0;
+          transform: scale(1.04);
+        }
+      }
+      #bannerTitle {
+        font-size: min(10vw, 42px);
+        font-weight: 900;
+        color: #fff;
+        letter-spacing: 0.5px;
+        text-shadow:
+          0 0 18px rgba(94, 242, 255, 0.8),
+          0 3px 12px rgba(0, 0, 0, 0.7);
+      }
+      #bannerSub {
+        margin-top: 10px;
+        font-size: min(4.8vw, 17px);
+        font-weight: 700;
+        color: #bfe9ff;
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+      }
+      #bannerSub .bGem {
+        width: 1.15em;
+        height: 1.15em;
+        object-fit: contain;
+        vertical-align: -0.2em;
+        filter: drop-shadow(0 0 6px rgba(111, 247, 255, 0.6));
+        pointer-events: none;
+      }
+      /* all-gems banner: the title pops in with a springy overshoot and a gold glow */
+      #bannerTitle.gemPop {
+        color: #ffe9a8;
+        text-shadow:
+          0 0 22px rgba(255, 209, 102, 0.95),
+          0 0 42px rgba(111, 247, 255, 0.6),
+          0 3px 12px rgba(0, 0, 0, 0.7);
+        animation: gemPop 0.95s cubic-bezier(0.2, 1.7, 0.35, 1) both;
+      }
+      @keyframes gemPop {
+        0% {
+          transform: scale(0.35) rotate(-8deg);
+          opacity: 0;
+        }
+        40% {
+          transform: scale(1.22) rotate(3deg);
+          opacity: 1;
+        }
+        62% {
+          transform: scale(0.94) rotate(-1.5deg);
+        }
+        80% {
+          transform: scale(1.06) rotate(1deg);
+        }
+        100% {
+          transform: scale(1) rotate(0);
+        }
+      }
+      /* portal-reached banner: the title bursts in with a bright flash and a
+   springy settle, and the sub line rises up beneath it */
+      #bannerTitle.portalPop {
+        color: #eafff4;
+        text-shadow:
+          0 0 26px rgba(125, 255, 176, 0.95),
+          0 0 54px rgba(111, 247, 255, 0.65),
+          0 3px 12px rgba(0, 0, 0, 0.7);
+        animation: portalPop 1.15s cubic-bezier(0.2, 1.7, 0.35, 1) both;
+      }
+      @keyframes portalPop {
+        0% {
+          transform: scale(0.3) rotate(-10deg);
+          opacity: 0;
+          filter: brightness(2.8);
+        }
+        30% {
+          transform: scale(1.28) rotate(4deg);
+          opacity: 1;
+          filter: brightness(1.7);
+        }
+        50% {
+          transform: scale(0.92) rotate(-2deg);
+        }
+        68% {
+          transform: scale(1.1) rotate(1.5deg);
+        }
+        84% {
+          transform: scale(0.98) rotate(-0.5deg);
+        }
+        100% {
+          transform: scale(1) rotate(0);
+          filter: brightness(1);
+        }
+      }
+      #bannerTitle.portalPop + #bannerSub {
+        animation: portalSub 0.8s ease 0.12s both;
+      }
+      @keyframes portalSub {
+        0% {
+          opacity: 0;
+          transform: translateY(14px);
+        }
+        100% {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      /* organized per-level instruction rows: one chip per instruction, icons
+   sized to match the How to Play screen (26px) */
+      .bRows {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 7px;
+        max-width: 100%;
+      }
+      .bRow {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 6px 7px;
+        font-size: min(4.3vw, 15px);
+        font-weight: 700;
+        color: #dfe9ff;
+        background: rgba(10, 16, 44, 0.62);
+        border: 1px solid rgba(122, 150, 255, 0.3);
+        border-radius: 12px;
+        padding: 7px 13px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+        max-width: 100%;
+      }
+      .bIco {
+        width: 26px;
+        height: 26px;
+        object-fit: contain;
+        flex: none;
+        pointer-events: none;
+      }
+      .bIco.gem {
+        filter: drop-shadow(0 0 5px rgba(111, 247, 255, 0.6));
+      }
+      .bRow .stImg {
+        width: 26px;
+        height: 26px;
+        vertical-align: middle;
+        filter: drop-shadow(0 0 5px rgba(255, 214, 102, 0.65));
+      }
+      #pauseBtn {
+        width: 44px;
+        height: 44px;
+        flex: none;
+        border-radius: 14px;
+        background: rgba(13, 18, 48, 0.85);
+        border: 1px solid rgba(122, 150, 255, 0.4);
+        color: #dfe6ff;
+        font-size: 17px;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+        touch-action: manipulation;
+        pointer-events: auto;
+      }
+      #pauseBtn.show {
+        display: flex;
+      }
+      #pauseBtn img {
+        display: none;
+        width: 24px;
+        height: 24px;
+        object-fit: contain;
+        pointer-events: none;
+      }
+      #pauseBtn.imgOk img {
+        display: block;
+      }
+      #pauseBtn.imgOk span {
+        display: none;
+      }
+      .ov {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: rgba(4, 6, 24, 0.84);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        padding: 24px;
+      }
+      .ov.show {
+        display: flex;
+      }
+      #menu {
+        background: transparent;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        padding: 0;
+      }
+      #menu .mWrap {
+        position: relative;
+        z-index: 2;
+      }
+      #menuFx {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+      .mHead {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .mTitle {
+        font-size: min(10vw, 44px);
+        font-weight: 900;
+        color: #fff;
+        text-align: center;
+        line-height: 1;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+        text-shadow: 0 3px 12px rgba(0, 0, 0, 0.7);
+        animation: titleGlow 4.2s ease-in-out infinite;
+      }
+      .mShine {
+        background: linear-gradient(105deg, #7de8ff 0%, #ffffff 25%, #bfe9ff 48%, #7de8ff 68%, #ffffff 92%);
+        background-size: 250% 100%;
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-shadow: none;
+        animation: titleShine 4.2s ease-in-out infinite;
+      }
+      @keyframes titleShine {
+        0%,
+        100% {
+          background-position: 0% 50%;
+        }
+        50% {
+          background-position: 100% 50%;
+        }
+      }
+      @keyframes titleGlow {
+        0%,
+        100% {
+          filter: drop-shadow(0 0 9px rgba(94, 242, 255, 0.4));
+        }
+        50% {
+          filter: drop-shadow(0 0 17px rgba(94, 242, 255, 0.72));
+        }
+      }
+      .mWrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        max-width: 340px;
+      }
+      .panel {
+        background: rgba(13, 18, 48, 0.94);
+        border: 1px solid rgba(122, 150, 255, 0.32);
+        border-radius: 20px;
+        padding: 20px;
+        width: 100%;
+        max-width: 360px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        box-shadow: 0 12px 44px rgba(0, 0, 0, 0.5);
+      }
+      .pTitle {
+        font-size: 21px;
+        font-weight: 900;
+        color: #fff;
+        text-align: center;
+      }
+      .mbtn {
+        background: rgba(122, 150, 255, 0.14);
+        border: 1px solid rgba(122, 150, 255, 0.42);
+        color: #e6ecff;
+        border-radius: 14px;
+        padding: 14px 16px;
+        font-size: 16px;
+        font-weight: 800;
+        letter-spacing: 0.4px;
+        width: 100%;
+        font-family: inherit;
+        touch-action: manipulation;
+      }
+      .mbtn.primary {
+        background: linear-gradient(135deg, #59f2ff, #7a8cff);
+        color: #071033;
+        border-color: transparent;
+      }
+      .mbtn:active {
+        transform: scale(0.97);
+      }
+      /* desktop convenience: a Next Level button shown after clearing a level
+   when the host is not supplying its own end-of-stage UI */
+      #nextBtn {
+        position: fixed;
+        left: 50%;
+        bottom: calc(30px + env(safe-area-inset-bottom, 0px));
+        transform: translateX(-50%);
+        width: auto;
+        min-width: 190px;
+        max-width: 82vw;
+        z-index: 8;
+        display: none;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+      }
+      #nextBtn.show {
+        display: block;
+        animation: nextIn 0.4s cubic-bezier(0.2, 1.5, 0.4, 1) both;
+      }
+      #nextBtn:active {
+        transform: translateX(-50%) scale(0.96);
+      }
+      @keyframes nextIn {
+        0% {
+          opacity: 0;
+          transform: translateX(-50%) translateY(16px) scale(0.9);
+        }
+        100% {
+          opacity: 1;
+          transform: translateX(-50%) translateY(0) scale(1);
+        }
+      }
+      /* How to Play: a distinct glowing card so the screen reads as its own
+   moment, with each section boxed and its heading on a bright pill.
+   pan-y keeps the instruction list scrollable on touch devices */
+      #howOv {
+        touch-action: none;
+        overflow: hidden;
+        justify-content: center;
+        padding: 12px;
+      }
+      #howOv .panel {
+        background: linear-gradient(160deg, rgba(22, 30, 70, 0.96), rgba(9, 12, 34, 0.97));
+        border: 1px solid rgba(111, 247, 255, 0.45);
+        box-shadow:
+          0 0 0 1px rgba(111, 247, 255, 0.12),
+          0 14px 50px rgba(0, 0, 0, 0.6),
+          0 0 36px rgba(94, 242, 255, 0.2);
+        margin: auto;
+        max-width: 560px;
+        transform-origin: center center;
+        will-change: transform;
+      }
+      #howOv .pTitle {
+        background: linear-gradient(100deg, #7de8ff, #ffffff 45%, #7de8ff);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        letter-spacing: 0.6px;
+        filter: drop-shadow(0 0 10px rgba(94, 242, 255, 0.4));
+      }
+      /* How to Play carousel: one instruction section per slide, paged with the
+   left/right arrows, the dots, or a horizontal swipe */
+      .howCarousel {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        width: 100%;
+      }
+      .howViewport {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        touch-action: pan-y;
+      }
+      .howList {
+        display: flex;
+        align-items: stretch;
+        gap: 0;
+        color: #cfd9ff;
+        font-size: 12.5px;
+        font-weight: 600;
+        line-height: 1.35;
+        padding: 0;
+        transition: transform 0.32s cubic-bezier(0.3, 0.9, 0.3, 1);
+        will-change: transform;
+      }
+      .howArrow {
+        flex: none;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: rgba(122, 150, 255, 0.16);
+        border: 1px solid rgba(111, 247, 255, 0.45);
+        color: #bfe9ff;
+        font-size: 24px;
+        font-weight: 900;
+        line-height: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: inherit;
+        padding: 0;
+        touch-action: manipulation;
+        box-shadow: 0 0 14px rgba(94, 242, 255, 0.25);
+      }
+      .howArrow:active {
+        transform: scale(0.92);
+      }
+      .howArrow:disabled {
+        opacity: 0.28;
+        box-shadow: none;
+      }
+      .howDots {
+        display: flex;
+        justify-content: center;
+        gap: 7px;
+        margin-top: 2px;
+      }
+      .howDot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: rgba(122, 150, 255, 0.3);
+        border: none;
+        padding: 0;
+        touch-action: manipulation;
+      }
+      .howDot.on {
+        background: #7de8ff;
+        box-shadow: 0 0 10px rgba(94, 242, 255, 0.7);
+      }
+      .howSec {
+        flex: 0 0 100%;
+        min-width: 100%;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        background: rgba(122, 150, 255, 0.06);
+        border: 1px solid rgba(122, 150, 255, 0.18);
+        border-radius: 12px;
+        padding: 8px 10px;
+      }
+      .howHead {
+        display: inline-flex;
+        align-self: flex-start;
+        font-size: 10.5px;
+        font-weight: 900;
+        letter-spacing: 1.6px;
+        text-transform: uppercase;
+        color: #06122e;
+        background: linear-gradient(135deg, #7de8ff, #7a8cff);
+        border-radius: 999px;
+        padding: 3px 11px;
+        box-shadow: 0 0 12px rgba(94, 242, 255, 0.35);
+      }
+      .howItem {
+        background: rgba(122, 150, 255, 0.1);
+        border-left: 3px solid rgba(111, 247, 255, 0.55);
+        border-radius: 8px;
+        padding: 6px 9px;
+      }
+      .gemImg {
+        width: 20px;
+        height: 20px;
+        object-fit: contain;
+        vertical-align: -0.35em;
+        pointer-events: none;
+        filter: drop-shadow(0 0 5px rgba(111, 247, 255, 0.6));
+      }
+      /* gold shield icon in the How to Play list: same 20px box as the other icons */
+      .shImg {
+        width: 20px;
+        height: 20px;
+        object-fit: contain;
+        vertical-align: -0.35em;
+        pointer-events: none;
+        filter: drop-shadow(0 0 5px rgba(255, 209, 102, 0.6));
+      }
+      /* trophy + stopwatch icons: stats popup titles and the fail banner,
+   sized to match the How to Play icons (26px) */
+      .tIco {
+        width: 26px;
+        height: 26px;
+        object-fit: contain;
+        vertical-align: middle;
+        pointer-events: none;
+        filter: drop-shadow(0 0 5px rgba(140, 240, 255, 0.55));
+      }
+      .pTitle .tIco {
+        margin-right: 7px;
+      }
+      .statsSub .tIco {
+        margin-right: 5px;
+        vertical-align: -0.3em;
+      }
+      #bannerTitle .tIco {
+        margin: 0 6px;
+      }
+      #lvlGrid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+        width: 100%;
+      }
+      .lvl {
+        position: relative;
+        aspect-ratio: 1/1;
+        min-height: 52px;
+        border-radius: 14px;
+        background: rgba(122, 150, 255, 0.13);
+        border: 1px solid rgba(122, 150, 255, 0.38);
+        color: #e6ecff;
+        font-weight: 900;
+        font-size: 18px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        font-family: inherit;
+        padding: 0;
+        touch-action: manipulation;
+      }
+      .lvl .st {
+        font-size: 13px;
+        letter-spacing: 1px;
+        display: flex;
+        align-items: center;
+        gap: 2px;
+      }
+      .stImg {
+        width: 1em;
+        height: 1em;
+        object-fit: contain;
+        vertical-align: -0.12em;
+        pointer-events: none;
+        filter: drop-shadow(0 0 3px rgba(255, 214, 102, 0.5));
+      }
+      .stImg.dim {
+        opacity: 0.28;
+        filter: grayscale(1);
+      }
+      /* larger, clearly visible stars on the levels grid and how-to-play list */
+      .lvl .stImg {
+        width: 19px;
+        height: 19px;
+        vertical-align: 0;
+        filter: drop-shadow(0 0 5px rgba(255, 214, 102, 0.65));
+      }
+      .howList .stImg {
+        width: 20px;
+        height: 20px;
+        vertical-align: -0.35em;
+        filter: drop-shadow(0 0 5px rgba(255, 214, 102, 0.65));
+      }
+      .lvl.locked {
+        background: rgba(122, 150, 255, 0.07);
+        border-color: rgba(122, 150, 255, 0.2);
+      }
+      .lvl .lockImg {
+        width: 30px;
+        height: 30px;
+        object-fit: contain;
+        pointer-events: none;
+        filter: drop-shadow(0 0 6px rgba(140, 240, 255, 0.55));
+      }
+      .lvl:active {
+        transform: scale(0.93);
+      }
+      #statsOv {
+        padding: 14px;
+        touch-action: pan-y;
+      }
+      #statsOv .panel {
+        padding: 16px;
+        gap: 10px;
+        max-width: 340px;
+      }
+      .statsSub {
+        font-size: 12.5px;
+        font-weight: 700;
+        color: #bfe9ff;
+        text-align: center;
+        margin: 0;
+      }
+      #statsList {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        width: 100%;
+        max-height: 32vh;
+        overflow-y: auto;
+        touch-action: pan-y;
+        -webkit-overflow-scrolling: touch;
+      }
+      .statRow {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        background: rgba(122, 150, 255, 0.09);
+        border-radius: 10px;
+        padding: 7px 11px;
+        color: #cfd9ff;
+        font-size: 13px;
+        font-weight: 700;
+        flex: none;
+      }
+      .statRow .t {
+        color: #8ff7ff;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .statRow.total {
+        background: rgba(111, 247, 255, 0.14);
+        color: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+    <div id="hud">
+      <div id="hudBox">
+        <div class="seg" id="levelChip">Level 1/10</div>
+        <div class="seg" id="gemChip">
+          <img
+            id="gemHudImg"
+            alt=""
+            draggable="false"
+            src="Assets/sims_like_diamond.webp"
+          /><span id="gemCountTxt">0/4</span>
+        </div>
+        <div class="seg" id="scoreChip"><span id="scoreTxt">0 pts</span></div>
+        <div class="seg" id="timerChip"><span id="timerTxt">00:00</span></div>
+        <div class="seg" id="shieldChip">
+          <img
+            id="shieldHudImg"
+            alt=""
+            draggable="false"
+            src="Assets/gold_shield_seahorse.webp"
+          /><span id="shieldTxt">7s</span>
+        </div>
+      </div>
+      <button id="pauseBtn">
+        <img
+          id="pauseImgEl"
+          alt=""
+          draggable="false"
+          src="Assets/pause_icon.webp"
+        /><span>⏸</span>
+      </button>
+    </div>
+    <div id="banner">
+      <div id="bannerTitle"></div>
+      <div id="bannerSub"></div>
+    </div>
+    <button id="nextBtn" class="mbtn primary">Next Level &#9654;</button>
+    <div id="menu" class="ov">
+      <canvas id="menuFx"></canvas>
+      <div class="mWrap">
+        <div class="mHead">
+          <div class="mTitle"><span class="mShine">Gem Drift</span></div>
+        </div>
+        <button class="mbtn primary" id="playBtn">Play</button>
+        <button class="mbtn" id="levelsBtn">Levels</button>
+        <button class="mbtn" id="howBtn">How to Play</button>
+      </div>
+    </div>
+    <div id="levelsOv" class="ov">
+      <div class="panel">
+        <div class="pTitle">Levels</div>
+        <div id="lvlGrid"></div>
+        <button class="mbtn" id="levelsBack">Back</button>
+      </div>
+    </div>
+    <div id="howOv" class="ov">
+      <div class="panel">
+        <div class="pTitle">How to Play</div>
+        <div class="howCarousel">
+          <button class="howArrow" id="howPrev" aria-label="Previous">&#8249;</button>
+          <div class="howViewport" id="howViewport">
+            <div class="howList" id="howList">
+          <div class="howSec">
+            <div class="howHead">Controls</div>
+            <div class="howItem">Tap any spot in the maze — the orb pathfinds its own way there</div>
+            <div class="howItem">Tap the orb itself to stop it where it is</div>
+            <div class="howItem">Drag anywhere to pan the camera and scout the maze</div>
+            <div class="howItem">Tap a wall and the orb glides as close as it can, then softly bounces off</div>
+          </div>
+          <div class="howSec">
+            <div class="howHead">Goal</div>
+            <div class="howItem">Collect every diamond for a +500 bonus</div>
+            <div class="howItem">Reach the glowing green portal to finish</div>
+            <div class="howItem">
+              Stars go by speed: finish with half the clock left for
+              <img
+                class="stImg"
+                alt=""
+                draggable="false"
+                src="Assets/star.webp"
+              /><img
+                class="stImg"
+                alt=""
+                draggable="false"
+                src="Assets/star.webp"
+              /><img
+                class="stImg"
+                alt=""
+                draggable="false"
+                src="Assets/star.webp"
+              />, a quarter for
+              <img
+                class="stImg"
+                alt=""
+                draggable="false"
+                src="Assets/star.webp"
+              /><img
+                class="stImg"
+                alt=""
+                draggable="false"
+                src="Assets/star.webp"
+              />
+            </div>
+          </div>
+          <div class="howSec">
+            <div class="howHead">Maze</div>
+            <div class="howItem">Every corridor connects through &mdash; there are no true dead ends</div>
+            <div class="howItem">A soft cyan glow marks a passage that opens through to the far side</div>
+            <div class="howItem">There are no arrows &mdash; the glow alone shows the way through, so follow it instead of turning back</div>
+          </div>
+          <div class="howSec">
+            <div class="howHead">Timer</div>
+            <div class="howItem">The clock counts down — it only ticks while the orb glides</div>
+            <div class="howItem">If it hits 00:00 the level fails — try again</div>
+          </div>
+          <div class="howSec">
+            <div class="howHead">Hazards</div>
+            <div class="howItem">Spiky urchins patrol the corridors — time your sends to slip past them</div>
+            <div class="howItem">Touch one and the orb is knocked back to the start; gems you collected are kept</div>
+          </div>
+          <div class="howSec">
+            <div class="howHead">Power-ups</div>
+            <div class="howItem">
+              <img
+                class="shImg"
+                alt=""
+                draggable="false"
+                src="Assets/gold_shield_seahorse.webp"
+              /> Gold shield pickups are scattered through the maze — grab one to bubble up
+            </div>
+            <div class="howItem">While the bubble holds, urchins burst harmlessly on contact instead of knocking you back</div>
+            <div class="howItem">The shield lasts 12 seconds — the HUD chip counts it down, then it fades</div>
+          </div>
+            </div>
+          </div>
+          <button class="howArrow" id="howNext" aria-label="Next">&#8250;</button>
+        </div>
+        <div class="howDots" id="howDots"></div>
+        <button class="mbtn" id="howBack">Back</button>
+      </div>
+    </div>
+    <div id="pauseOv" class="ov">
+      <div class="panel">
+        <div class="pTitle">Paused</div>
+        <button class="mbtn primary" id="resumeBtn">Resume</button>
+        <button class="mbtn" id="restartBtn">Restart</button>
+        <button class="mbtn" id="quitBtn">Main Menu</button>
+      </div>
+    </div>
+    <div id="statsOv" class="ov">
+      <div class="panel">
+        <div class="pTitle">Run Summary</div>
+        <div class="statsSub">Your time per level this run</div>
+        <div id="statsList"></div>
+        <div class="statRow total" id="statsTotal"><span>Total</span><span class="t">—</span></div>
+        <button class="mbtn primary" id="statsPlay">New Run</button>
+        <button class="mbtn" id="statsMenu">Main Menu</button>
+      </div>
+    </div>
+    <script>
+      (function () {
+        "use strict";
+        var sdk = window.RemixSDK || {};
+        function $(id) {
+          return document.getElementById(id);
+        }
+        var cv = $("game"),
+          ctx = cv.getContext("2d");
+        var hudEl = $("hud"),
+          levelChip = $("levelChip"),
+          gemChip = $("gemChip"),
+          timerChip = $("timerChip"),
+          gemHudImg = $("gemHudImg"),
+          gemCountTxt = $("gemCountTxt"),
+          timerTxt = $("timerTxt"),
+          shieldChip = $("shieldChip"),
+          shieldTxt = $("shieldTxt");
+        var banner = $("banner"),
+          bannerTitle = $("bannerTitle"),
+          bannerSub = $("bannerSub");
+        var scoreChip = $("scoreChip"),
+          scoreTxt = $("scoreTxt");
+        var pauseBtn = $("pauseBtn"),
+          menuEl = $("menu"),
+          levelsOv = $("levelsOv"),
+          howOv = $("howOv"),
+          pauseOv = $("pauseOv");
+        var playBtn = $("playBtn"),
+          levelsBtn = $("levelsBtn"),
+          howBtn = $("howBtn"),
+          levelsBack = $("levelsBack"),
+          howBack = $("howBack");
+        var howPrev = $("howPrev"),
+          howNext = $("howNext"),
+          howList = $("howList"),
+          howViewport = $("howViewport"),
+          howDots = $("howDots");
+        var resumeBtn = $("resumeBtn"),
+          restartBtn = $("restartBtn"),
+          quitBtn = $("quitBtn"),
+          lvlGrid = $("lvlGrid");
+        var nextBtn = $("nextBtn");
+        var statsOv = $("statsOv"),
+          statsList = $("statsList"),
+          statsTotal = $("statsTotal"),
+          statsPlay = $("statsPlay"),
+          statsMenu = $("statsMenu");
+        var menuFx = $("menuFx"),
+          mfCtx = menuFx.getContext("2d");
+
+        /* ---------------- levels: difficulty ramps from 2 to 10 ---------------- */
+        /* every level has a name: the resume button reads "Resume: <name>".
+   time = the glide-time budget: the countdown only ticks while the orb
+   moves, and hitting 00:00 fails the level */
+        var LEVELS = [
+          { name: "Tide Pool", cols: 11, rows: 15, gems: 4, time: 60 },
+          { name: "Coral Hollow", cols: 13, rows: 17, gems: 5, time: 75 },
+          { name: "Violet Drift", cols: 13, rows: 19, gems: 7, time: 85 },
+          { name: "Emerald Grotto", cols: 15, rows: 21, gems: 7, time: 95 },
+          { name: "Orchid Deep", cols: 15, rows: 23, gems: 8, time: 105 },
+          { name: "Midnight Trench", cols: 17, rows: 25, gems: 9, time: 120 },
+          { name: "Ember Vents", cols: 17, rows: 27, gems: 10, time: 130 },
+          { name: "Jade Garden", cols: 19, rows: 27, gems: 11, time: 140 },
+          { name: "Amethyst Rift", cols: 19, rows: 29, gems: 12, time: 150 },
+          { name: "Abyssal Heart", cols: 21, rows: 31, gems: 13, time: 170 },
+        ];
+        /* hand-authored fixed layouts: one per level, so every level always plays
+   the same maze instead of a fresh random carve. Every odd row is a full
+   straight corridor; a link opens the cell between the corridors above and
+   below at a chosen column (a right-angle turn); a gap walls off a corridor
+   cell so that corridor ends in dead ends. The col-1 and col-(cols-2) links on
+   every connector row form the outer ring, which keeps every level fully
+   connected. links/gaps are [row, col] pairs. */
+        var LEVEL_LAYOUTS = [
+          {
+            links: [[2,1],[2,9],[4,1],[4,9],[6,1],[6,9],[8,1],[8,9],[10,1],[10,9],[12,1],[12,9],[4,5],[8,5]],
+            gaps: [[3,5],[7,5],[11,5]],
+          },
+          {
+            links: [[2,1],[2,11],[4,1],[4,11],[6,1],[6,11],[8,1],[8,11],[10,1],[10,11],[12,1],[12,11],[14,1],[14,11],[4,6],[8,6],[12,6],[6,3],[10,9]],
+            gaps: [[3,6],[7,6],[11,6],[5,9],[9,3]],
+          },
+          {
+            links: [[2,1],[2,11],[4,1],[4,11],[6,1],[6,11],[8,1],[8,11],[10,1],[10,11],[12,1],[12,11],[14,1],[14,11],[16,1],[16,11],[4,6],[8,6],[12,6],[6,9],[10,3],[14,9]],
+            gaps: [[3,6],[7,6],[11,6],[15,6],[5,3],[9,9],[13,3]],
+          },
+          {
+            links: [[2,1],[2,13],[4,1],[4,13],[6,1],[6,13],[8,1],[8,13],[10,1],[10,13],[12,1],[12,13],[14,1],[14,13],[16,1],[16,13],[18,1],[18,13],[4,7],[8,7],[12,7],[16,7],[6,11],[10,3],[14,11]],
+            gaps: [[3,7],[7,7],[11,7],[15,7],[5,11],[9,3],[13,11],[17,3]],
+          },
+          {
+            links: [[2,1],[2,13],[4,1],[4,13],[6,1],[6,13],[8,1],[8,13],[10,1],[10,13],[12,1],[12,13],[14,1],[14,13],[16,1],[16,13],[18,1],[18,13],[20,1],[20,13],[4,7],[8,7],[12,7],[16,7],[6,11],[10,3],[14,11],[18,7]],
+            gaps: [[3,7],[7,7],[11,7],[15,7],[19,7],[5,11],[9,3],[13,11],[17,3]],
+          },
+          {
+            links: [[2,1],[2,15],[4,1],[4,15],[6,1],[6,15],[8,1],[8,15],[10,1],[10,15],[12,1],[12,15],[14,1],[14,15],[16,1],[16,15],[18,1],[18,15],[20,1],[20,15],[22,1],[22,15],[4,8],[8,8],[12,8],[16,8],[20,8],[6,12],[10,4],[14,12],[18,4]],
+            gaps: [[3,8],[7,8],[11,8],[15,8],[19,8],[5,12],[9,4],[13,12],[17,4],[21,8]],
+          },
+          {
+            links: [[2,1],[2,15],[4,1],[4,15],[6,1],[6,15],[8,1],[8,15],[10,1],[10,15],[12,1],[12,15],[14,1],[14,15],[16,1],[16,15],[18,1],[18,15],[20,1],[20,15],[22,1],[22,15],[24,1],[24,15],[4,8],[8,8],[12,8],[16,8],[20,8],[24,8],[6,12],[10,4],[14,12],[18,4],[22,12]],
+            gaps: [[3,8],[7,8],[11,8],[15,8],[19,8],[23,8],[5,12],[9,4],[13,12],[17,4],[21,12]],
+          },
+          {
+            links: [[2,1],[2,17],[4,1],[4,17],[6,1],[6,17],[8,1],[8,17],[10,1],[10,17],[12,1],[12,17],[14,1],[14,17],[16,1],[16,17],[18,1],[18,17],[20,1],[20,17],[22,1],[22,17],[24,1],[24,17],[4,9],[8,9],[12,9],[16,9],[20,9],[24,9],[6,13],[10,5],[14,13],[18,5],[22,13]],
+            gaps: [[3,9],[7,9],[11,9],[15,9],[19,9],[23,9],[5,13],[9,5],[13,13],[17,5],[21,13]],
+          },
+          {
+            links: [[2,1],[2,17],[4,1],[4,17],[6,1],[6,17],[8,1],[8,17],[10,1],[10,17],[12,1],[12,17],[14,1],[14,17],[16,1],[16,17],[18,1],[18,17],[20,1],[20,17],[22,1],[22,17],[24,1],[24,17],[26,1],[26,17],[4,9],[8,9],[12,9],[16,9],[20,9],[24,9],[6,13],[10,5],[14,13],[18,5],[22,13],[26,9]],
+            gaps: [[3,9],[7,9],[11,9],[15,9],[19,9],[23,9],[27,9],[5,13],[9,5],[13,13],[17,5],[21,13],[25,9]],
+          },
+          {
+            links: [[2,1],[2,19],[4,1],[4,19],[6,1],[6,19],[8,1],[8,19],[10,1],[10,19],[12,1],[12,19],[14,1],[14,19],[16,1],[16,19],[18,1],[18,19],[20,1],[20,19],[22,1],[22,19],[24,1],[24,19],[26,1],[26,19],[28,1],[28,19],[4,10],[8,10],[12,10],[16,10],[20,10],[24,10],[28,10],[6,15],[10,5],[14,15],[18,5],[22,15],[26,5]],
+            gaps: [[3,10],[7,10],[11,10],[15,10],[19,10],[23,10],[27,10],[5,15],[9,5],[13,15],[17,5],[21,15],[25,5],[29,10]],
+          },
+        ];
+        function levelName(i) {
+          var L = LEVELS[i - 1];
+          return (L && L.name) || "Level " + i;
+        }
+        var SPEED = 5.5,
+          R = 0.27;
+        var W = 0,
+          H = 0,
+          DPR = 1;
+        var safe = { top: 0, right: 0, bottom: 0, left: 0 };
+        var grid = null,
+          cols = 9,
+          rows = 13,
+          cs = 24,
+          csIn = 48,
+          csOut = 36,
+          mx = 0,
+          my = 0,
+          mazeW = 0,
+          mazeH = 0;
+        var camX = 0,
+          camY = 0,
+          bubbles = [],
+          rayRgb = [200, 235, 255];
+        var gems = [],
+          exitC = { x: 1.5, y: 1.5 };
+        /* opened dead ends: every wall cell that openDeadEnds carved through, so
+   the renderer can mark it as a passage that continues to the far side */
+        var openPassages = [];
+        /* shield power-up: gold pickups scattered through the maze. Grabbing one
+   wraps the orb in a bubble for a few seconds, during which urchin contact
+   bursts the urchin instead of knocking the orb back to the start */
+        var shields = [],
+          shieldT = 0,
+          shieldOutT = 0,
+          SHIELD_DUR = 12;
+        /* patrolling urchins: touching one knocks the orb back to the start */
+        var urchins = [],
+          invulnT = 0,
+          URCHIN_HIT2 = 0.28;
+        /* fog of war: revealed[cell]=1 once the orb has explored that corridor */
+        var revealed = null,
+          revStamp = null,
+          revGen = 0;
+        var cracks = [],
+          mosses = [],
+          dusts = [],
+          specks = [],
+          mossSprites = null;
+        var player = { x: 1.5, y: 1.5 },
+          dirX = 0,
+          dirY = 1,
+          trail = [],
+          particles = [],
+          stars = [];
+        var levelIndex = 1,
+          totalGems = 0,
+          gemCount = 0,
+          allGemsDone = false;
+        var score = 0,
+          chain = 0,
+          lastGemT = -9,
+          popups = [];
+        /* gem-collect slow motion: a 0.05s window where time dilates for impact */
+        var slowmoT = 0,
+          SLOWMO_DUR = 0.05,
+          SLOWMO_SCALE = 0.25;
+        /* laser-hit feedback: screen shake + red flash window, and the reset guard */
+        var shakeT = 0,
+          shakeDur = 0.45,
+          shakeMag = 9,
+          flashT = 0,
+          FLASH_DUR = 0.3;
+        /* portal-entry animation: on reaching the portal the orb spirals into its
+   center, shrinking and fading, before the stage-end flow fires */
+        var ENTER_DUR = 0.95,
+          ENTER_SPIN = 7.5;
+        var enterT = 0,
+          enterA0 = 0,
+          enterR0 = 0.5,
+          spawnAccum = 0;
+        var orbHidden = false;
+        var highestUnlocked = 1,
+          starsMap = {};
+        /* per-session unlock tracking: on desktop/preview there is no platform
+   progression, so clearing a level opens the next one for this session only.
+   seenLevels remembers which levels have been played, so a freshly unlocked
+   level can wear a NEW badge until it is entered. */
+        var sessionUnlocked = 1,
+          seenLevels = {};
+        var runTimes = {},
+          runStars = {},
+          pendingStats = false;
+        var resumeData = null,
+          restored = false,
+          pendingPlay = null;
+        /* fresh-cycle flag: while set, the level grid ignores platform progression
+   and shows only what this run has actually cleared — level 1 open, the rest
+   locked with lock icons. It stays set for the whole cycle, so the locked grid
+   persists through the new run until each level is re-cleared. */
+        var cycleReset = false,
+          cycleStars = {};
+        var elapsed = 0,
+          timerRunning = false,
+          lastClock = "";
+        var state = "boot",
+          reported = false,
+          animT = 0,
+          pausedFrom = null;
+        var bgHsl = [
+            [230, 60, 20],
+            [230, 65, 14],
+            [230, 70, 7],
+          ],
+          blobRgb = [
+            [77, 88, 173],
+            [207, 224, 255],
+            [44, 51, 116],
+          ];
+        var muted = false,
+          audioCtx = null,
+          master = null;
+        var GEM_COLORS = ["#6ff7ff", "#ffffff", "#a5f4ff", "#7de8ff"];
+        var SPARK_COLORS = ["#ffffff", "#8ff7ff", "#7de8ff"];
+        /* custom star sprite used for every star rating in the UI */
+        var STAR_URL =
+          "Assets/star.webp";
+        /* custom lock icon shown on locked levels in the levels grid */
+        var LOCK_URL =
+          "Assets/simple_lock.webp";
+        /* trophy + stopwatch icons for the stats popup and the fail banner */
+        var TROPHY_URL =
+          "Assets/trophy.webp";
+        var WATCH_URL =
+          "Assets/stopwatch_timer.webp";
+        /* icon URLs for the per-level instruction banner, sized like How to Play */
+        var GEM_URL =
+          "Assets/sims_like_diamond.webp";
+        function bIco(cls, url) {
+          return '<img class="bIco ' + cls + '" alt="" draggable="false" src="' + url + '">';
+        }
+        function starHtml(n, total) {
+          total = total || 3;
+          var s = "";
+          for (var i = 0; i < total; i++)
+            s += '<img class="stImg' + (i < n ? "" : " dim") + '" alt="" draggable="false" src="' + STAR_URL + '">';
+          return s;
+        }
+        /* custom player orb sprite (replaces the default gradient orb once loaded) */
+        var orbImg = new Image(),
+          orbReady = false;
+        orbImg.onload = function () {
+          orbReady = true;
+        };
+        orbImg.src =
+          "Assets/orb.webp";
+        /* custom diamond sprite: replaces the drawn gem in the maze and in the HUD */
+        var gemImg = new Image(),
+          gemReady = false;
+        gemImg.onload = function () {
+          gemReady = true;
+        };
+        gemImg.src =
+          "Assets/sims_like_diamond.webp";
+        /* custom urchin sprite: replaces the drawn spiky hazard once loaded */
+        var urchinImg = new Image(),
+          urchinReady = false;
+        urchinImg.onload = function () {
+          urchinReady = true;
+        };
+        urchinImg.src =
+          "Assets/urchin.webp";
+        /* custom shield sprite: replaces the drawn gold shield pickup once loaded */
+        var shieldImg = new Image(),
+          shieldReady = false;
+        shieldImg.onload = function () {
+          shieldReady = true;
+        };
+        shieldImg.src =
+          "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/66912d6c-3efc-4e67-aed1-2b0d35d72649/gold-shield-with-a-s-3etozx-GdZo.webp?cQuM";
+        /* custom pause icon: swaps in the webp once loaded, emoji stays as fallback */
+        var pauseImgEl = $("pauseImgEl");
+        pauseImgEl.addEventListener("load", function () {
+          pauseBtn.classList.add("imgOk");
+        });
+        /* if the HUD diamond fails to load, fall back to the emoji */
+        gemHudImg.addEventListener("error", function () {
+          gemHudImg.style.display = "none";
+          var em = document.createElement("span");
+          em.textContent = "\u{1F48E}";
+          gemChip.insertBefore(em, gemCountTxt);
+        });
+        /* per-level underwater zones: each level dives into a different depth */
+        var THEMES = [
+          { bg: ["#0e4d5e", "#07293b", "#02101c"], star: "#c9f2ff", wallA: "#2fa8c9", wallB: "#144d66" },
+          { bg: ["#0d3f66", "#082238", "#020d1a"], star: "#cfe6ff", wallA: "#3f7ba6", wallB: "#1f4468" },
+          { bg: ["#251a5e", "#140f3e", "#080522"], star: "#e2d6ff", wallA: "#6b4fb8", wallB: "#3a2a70" },
+          { bg: ["#0c4a44", "#072b2a", "#021413"], star: "#cfeee6", wallA: "#3f8f7a", wallB: "#1f4f44" },
+          { bg: ["#3f1a52", "#241030", "#100617"], star: "#f0d2ee", wallA: "#9a4f96", wallB: "#542a52" },
+          { bg: ["#0f3a6b", "#0a2147", "#040f24"], star: "#d2e4ff", wallA: "#4f74b8", wallB: "#2a3f70" },
+          { bg: ["#4a2418", "#2b140c", "#120806"], star: "#ffd9b8", wallA: "#b86a3f", wallB: "#683a22" },
+          { bg: ["#0b4634", "#072a20", "#021410"], star: "#d2f2e0", wallA: "#3fae7e", wallB: "#1f5e44" },
+          { bg: ["#2c2160", "#181246", "#0a0824"], star: "#dcd6ff", wallA: "#7a5fc0", wallB: "#443070" },
+          { bg: ["#47182f", "#280d1d", "#110509"], star: "#ffd2e4", wallA: "#b84f7e", wallB: "#682a48" },
+        ];
+        var theme = THEMES[0],
+          starColor = THEMES[0].star;
+        function shade(hex, f) {
+          var n = parseInt(hex.slice(1), 16);
+          return (
+            "rgb(" +
+            Math.round(((n >> 16) & 255) * f) +
+            "," +
+            Math.round(((n >> 8) & 255) * f) +
+            "," +
+            Math.round((n & 255) * f) +
+            ")"
+          );
+        }
+        function hexRgb(hex) {
+          var n = parseInt(hex.slice(1), 16);
+          return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+        }
+        function hexHsl(hex) {
+          var c = hexRgb(hex);
+          return rgbHsl(c[0], c[1], c[2]);
+        }
+        function rgbHsl(r, g, b) {
+          r /= 255;
+          g /= 255;
+          b /= 255;
+          var mx = Math.max(r, g, b),
+            mn = Math.min(r, g, b),
+            d,
+            h,
+            s,
+            l = (mx + mn) / 2;
+          if (mx === mn) {
+            h = 0;
+            s = 0;
+          } else {
+            d = mx - mn;
+            s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+            if (mx === r) h = (g - b) / d + (g < b ? 6 : 0);
+            else if (mx === g) h = (b - r) / d + 2;
+            else h = (r - g) / d + 4;
+            h *= 60;
+          }
+          return [h, s * 100, l * 100];
+        }
+        function hslStr(h, s, l) {
+          return (
+            "hsl(" +
+            (((h % 360) + 360) % 360).toFixed(1) +
+            "," +
+            clamp(s, 0, 100).toFixed(1) +
+            "%," +
+            clamp(l, 0, 100).toFixed(1) +
+            "%)"
+          );
+        }
+        function rgbaStr(rgb, a) {
+          return "rgba(" + rgb[0] + "," + rgb[1] + "," + rgb[2] + "," + a.toFixed(3) + ")";
+        }
+
+        function clamp(v, a, b) {
+          return v < a ? a : v > b ? b : v;
+        }
+        function mulberry32(a) {
+          return function () {
+            a |= 0;
+            a = (a + 0x6d2b79f5) | 0;
+            var t = Math.imul(a ^ (a >>> 15), 1 | a);
+            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+          };
+        }
+
+        /* ---------------- audio ---------------- */
+        function ensureAudio() {
+          if (!audioCtx) {
+            try {
+              var AC = window.AudioContext || window.webkitAudioContext;
+              if (!AC) return;
+              audioCtx = new AC();
+              master = audioCtx.createGain();
+              master.gain.value = muted ? 0 : 1;
+              master.connect(audioCtx.destination);
+            } catch (e) {
+              return;
+            }
+          }
+          if (audioCtx && audioCtx.state === "suspended") {
+            try {
+              audioCtx.resume();
+            } catch (e) {}
+          }
+        }
+        function tone(freq, dur, type, vol, delay) {
+          if (!audioCtx || muted) return;
+          try {
+            var t0 = audioCtx.currentTime + (delay || 0);
+            var o = audioCtx.createOscillator(),
+              g = audioCtx.createGain();
+            o.type = type || "sine";
+            o.frequency.setValueAtTime(freq, t0);
+            g.gain.setValueAtTime(0.0001, t0);
+            g.gain.exponentialRampToValueAtTime(vol || 0.2, t0 + 0.015);
+            g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+            o.connect(g);
+            g.connect(master);
+            o.start(t0);
+            o.stop(t0 + dur + 0.05);
+          } catch (e) {}
+        }
+        var sfx = {
+          gem: function () {
+            tone(930, 0.1, "sine", 0.22);
+            tone(1390, 0.14, "sine", 0.16, 0.07);
+          },
+          zap: function () {
+            tone(170, 0.2, "sawtooth", 0.28);
+            tone(85, 0.3, "square", 0.2, 0.05);
+            tone(1250, 0.07, "sine", 0.13);
+          },
+          win: function () {
+            var f = [523, 659, 784, 1047];
+            for (var i = 0; i < f.length; i++) tone(f[i], 0.18, "triangle", 0.2, i * 0.1);
+          },
+          /* distinct sweep for sweeping every diamond on a level */
+          allGems: function () {
+            var f = [784, 988, 1175, 1568];
+            for (var i = 0; i < f.length; i++) tone(f[i], 0.16, "sine", 0.2, i * 0.08);
+            tone(1976, 0.22, "sine", 0.14, 0.32);
+          },
+          /* shield pickup: a warm rising triad as the bubble wraps the orb */
+          shield: function () {
+            tone(520, 0.14, "triangle", 0.2);
+            tone(780, 0.18, "triangle", 0.18, 0.08);
+            tone(1040, 0.24, "sine", 0.14, 0.16);
+          },
+          /* rising sweep as the orb gets pulled into the portal */
+          portal: function () {
+            if (!audioCtx || muted) return;
+            try {
+              var t0 = audioCtx.currentTime;
+              var o = audioCtx.createOscillator(),
+                g = audioCtx.createGain();
+              o.type = "sine";
+              o.frequency.setValueAtTime(240, t0);
+              o.frequency.exponentialRampToValueAtTime(960, t0 + 0.6);
+              g.gain.setValueAtTime(0.0001, t0);
+              g.gain.exponentialRampToValueAtTime(0.2, t0 + 0.08);
+              g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.62);
+              o.connect(g);
+              g.connect(master);
+              o.start(t0);
+              o.stop(t0 + 0.68);
+            } catch (e) {}
+          },
+        };
+        /* gem collect sound: a dedicated audio clip played on every diamond pickup */
+        var gemSfx = new Audio(
+          "Sounds/gem_collect.mp3",
+        );
+        gemSfx.preload = "auto";
+        function playGemSfx() {
+          if (muted) return;
+          try {
+            gemSfx.currentTime = 0;
+            var p = gemSfx.play();
+            if (p && p.catch) p.catch(function () {});
+          } catch (e) {}
+        }
+        /* urchin contact sound: a dedicated audio clip played when the orb is hit */
+        var contactSfx = new Audio(
+          "Sounds/enemy_contact.mp3",
+        );
+        contactSfx.preload = "auto";
+        function playContactSfx() {
+          if (muted) return;
+          try {
+            contactSfx.currentTime = 0;
+            var p = contactSfx.play();
+            if (p && p.catch) p.catch(function () {});
+          } catch (e) {}
+        }
+        /* wall contact sound: a dedicated audio clip played when the orb hits a wall */
+        var wallSfx = new Audio(
+          "Sounds/wall_hit.mp3",
+        );
+        wallSfx.preload = "auto";
+        function playWallSfx() {
+          if (muted) return;
+          try {
+            wallSfx.currentTime = 0;
+            var p = wallSfx.play();
+            if (p && p.catch) p.catch(function () {});
+          } catch (e) {}
+        }
+        /* respawn sound: a dedicated audio clip played when the orb is knocked back
+   to the start and reappears there */
+        var respawnSfx = new Audio(
+          "Sounds/respawn.mp3",
+        );
+        respawnSfx.preload = "auto";
+        function playRespawnSfx() {
+          if (muted) return;
+          try {
+            respawnSfx.currentTime = 0;
+            var p = respawnSfx.play();
+            if (p && p.catch) p.catch(function () {});
+          } catch (e) {}
+        }
+        /* portal-entry sound: a dedicated audio clip played as the orb is pulled
+   into the portal */
+        var portalSfx = new Audio(
+          "Sounds/portal_enter.mp3",
+        );
+        portalSfx.preload = "auto";
+        function playPortalSfx() {
+          if (muted) return;
+          try {
+            portalSfx.currentTime = 0;
+            var p = portalSfx.play();
+            if (p && p.catch) p.catch(function () {});
+          } catch (e) {}
+        }
+        /* all-gems-collected sound: a dedicated audio clip played when the last
+   diamond on a level is swept up */
+        var allGemsSfx = new Audio(
+          "Sounds/all_gems_collect.mp3",
+        );
+        allGemsSfx.preload = "auto";
+        function playAllGemsSfx() {
+          if (muted) return;
+          try {
+            allGemsSfx.currentTime = 0;
+            var p = allGemsSfx.play();
+            if (p && p.catch) p.catch(function () {});
+          } catch (e) {}
+        }
+        /* urchin-destroyed sound: a dedicated audio clip played when a shielded
+   orb bursts an urchin. Volume is trimmed so it sits level with the other
+   effects instead of spiking over them */
+        var urchinDestroySfx = new Audio(
+          "Sounds/sea_urchin_destroyed.mp3",
+        );
+        urchinDestroySfx.preload = "auto";
+        urchinDestroySfx.volume = 0.7;
+        function playUrchinDestroySfx() {
+          if (muted) return;
+          try {
+            urchinDestroySfx.currentTime = 0;
+            var p = urchinDestroySfx.play();
+            if (p && p.catch) p.catch(function () {});
+          } catch (e) {}
+        }
+        /* shield-collected sound: a dedicated audio clip played when the orb grabs
+   a gold shield pickup. Volume is trimmed so it sits level with the other
+   effects instead of spiking over them */
+        var shieldSfx = new Audio(
+          "Sounds/shield_collected.mp3",
+        );
+        shieldSfx.preload = "auto";
+        shieldSfx.volume = 0.7;
+        function playShieldSfx() {
+          if (muted) return;
+          try {
+            shieldSfx.currentTime = 0;
+            var p = shieldSfx.play();
+            if (p && p.catch) p.catch(function () {});
+          } catch (e) {}
+        }
+        /* shield-ran-out sound: a dedicated audio clip played the moment the
+   shield power-up expires. Volume is trimmed so it sits level with the
+   other effects instead of spiking over them */
+        var shieldOutSfx = new Audio(
+          "Sounds/shield_ran_out.mp3",
+        );
+        shieldOutSfx.preload = "auto";
+        shieldOutSfx.volume = 0.7;
+        function playShieldOutSfx() {
+          if (muted) return;
+          try {
+            shieldOutSfx.currentTime = 0;
+            var p = shieldOutSfx.play();
+            if (p && p.catch) p.catch(function () {});
+          } catch (e) {}
+        }
+        function haptic(t) {
+          try {
+            sdk.hapticFeedback(t);
+          } catch (e) {}
+        }
+
+        /* ---------------- maze generation ---------------- */
+        function genMaze(c, r, rnd) {
+          var g = new Uint8Array(c * r),
+            i;
+          for (i = 0; i < g.length; i++) g[i] = 1;
+          function idx(x, y) {
+            return y * c + x;
+          }
+          var stack = [[1, 1]];
+          g[idx(1, 1)] = 0;
+          var dirs = [
+            [2, 0],
+            [-2, 0],
+            [0, 2],
+            [0, -2],
+          ];
+          var lastDir = -1;
+          while (stack.length) {
+            var top = stack[stack.length - 1];
+            var x = top[0],
+              y = top[1],
+              opts = [];
+            for (var d = 0; d < 4; d++) {
+              var nx = x + dirs[d][0],
+                ny = y + dirs[d][1];
+              if (nx > 0 && nx < c - 1 && ny > 0 && ny < r - 1 && g[idx(nx, ny)] === 1) opts.push(d);
+            }
+            if (!opts.length) {
+              stack.pop();
+              lastDir = -1;
+              continue;
+            }
+            /* straight-corridor carve: the maze reads as a grid of long, straight
+       runs with right-angle corners (matching the reference layout) rather
+       than a twisty snake. The carve keeps going straight whenever it can
+       and only turns at a dead end or on the random roll. Straightness
+       eases off slightly with depth so later levels get more corners, but
+       every level stays a clean grid maze */
+            var straightPref = 0.74 - 0.2 * ((levelIndex - 1) / 9);
+            var di;
+            if (lastDir >= 0 && opts.indexOf(lastDir) >= 0 && rnd() < straightPref) {
+              di = lastDir;
+            } else {
+              var per = [];
+              for (var d2 = 0; d2 < opts.length; d2++)
+                if (lastDir < 0 || (opts[d2] !== lastDir && (opts[d2] ^ 1) !== lastDir)) per.push(opts[d2]);
+              if (!per.length) per = opts;
+              di = per[Math.floor(rnd() * per.length)];
+            }
+            lastDir = di;
+            var dd = dirs[di];
+            g[idx(x + dd[0] / 2, y + dd[1] / 2)] = 0;
+            g[idx(x + dd[0], y + dd[1])] = 0;
+            stack.push([x + dd[0], y + dd[1]]);
+          }
+          /* braid the maze: dead ends get opened into loops, so the grid maze has
+     the connected ring corridors the reference layout shows. Generous on
+     level 1 so wrong turns cost almost nothing, scarcer on deep levels
+     where dead ends punish exploration */
+          var braid = 0.3 - 0.18 * ((levelIndex - 1) / 9);
+          var B = [
+            [1, 0],
+            [-1, 0],
+            [0, 1],
+            [0, -1],
+          ];
+          for (var by2 = 1; by2 < r - 1; by2++)
+            for (var bx2 = 1; bx2 < c - 1; bx2++) {
+              if (g[idx(bx2, by2)] !== 0) continue;
+              var nOpen = 0,
+                opts2 = [];
+              for (var d2 = 0; d2 < 4; d2++) {
+                var wx3 = bx2 + B[d2][0],
+                  wy3 = by2 + B[d2][1];
+                if (g[idx(wx3, wy3)] === 0) nOpen++;
+                else {
+                  var fx2 = bx2 + B[d2][0] * 2,
+                    fy2 = by2 + B[d2][1] * 2;
+                  if (fx2 > 0 && fx2 < c - 1 && fy2 > 0 && fy2 < r - 1 && g[idx(fx2, fy2)] === 0) opts2.push(B[d2]);
+                }
+              }
+              if (nOpen === 1 && opts2.length && rnd() < braid) {
+                var dd3 = opts2[Math.floor(rnd() * opts2.length)];
+                g[idx(bx2 + dd3[0], by2 + dd3[1])] = 0;
+              }
+            }
+          return g;
+        }
+        /* open every dead end into a through-passage: a corridor cell with only
+   one open neighbour gets a second opening carved through to the next
+   corridor, so a player who walks into a dead end can always carry on to the
+   far side instead of being turned back. Runs until no dead ends remain. */
+        function openDeadEnds(g, c, r) {
+          var D = [
+            [1, 0],
+            [-1, 0],
+            [0, 1],
+            [0, -1],
+          ];
+          function idx(x2, y2) {
+            return y2 * c + x2;
+          }
+          function open(x2, y2) {
+            return x2 > 0 && y2 > 0 && x2 < c - 1 && y2 < r - 1 && g[idx(x2, y2)] === 0;
+          }
+          var changed = true,
+            guard = 0;
+          while (changed && guard++ < 12) {
+            changed = false;
+            for (var y = 1; y < r - 1; y++)
+              for (var x = 1; x < c - 1; x++) {
+                if (g[idx(x, y)] !== 0) continue;
+                var nOpen = 0,
+                  only = -1,
+                  d;
+                for (d = 0; d < 4; d++)
+                  if (open(x + D[d][0], y + D[d][1])) {
+                    nOpen++;
+                    only = d;
+                  }
+                if (nOpen !== 1) continue;
+                /* prefer a wall whose far cell is an open corridor, so the new
+       opening links straight through to the neighbouring passage */
+                var pick = -1;
+                for (d = 0; d < 4; d++) {
+                  if (d === only) continue;
+                  var wx = x + D[d][0],
+                    wy = y + D[d][1];
+                  if (wx <= 0 || wy <= 0 || wx >= c - 1 || wy >= r - 1) continue;
+                  if (g[idx(wx, wy)] !== 0) continue;
+                  var fx = x + D[d][0] * 2,
+                    fy = y + D[d][1] * 2;
+                  if (fx > 0 && fy > 0 && fx < c - 1 && fy < r - 1 && g[idx(fx, fy)] === 0) {
+                    pick = d;
+                    break;
+                  }
+                }
+                if (pick < 0) {
+                  /* fall back: open any interior wall that is not the outer frame */
+                  for (d = 0; d < 4; d++) {
+                    if (d === only) continue;
+                    var wx2 = x + D[d][0],
+                      wy2 = y + D[d][1];
+                    if (wx2 <= 0 || wy2 <= 0 || wx2 >= c - 1 || wy2 >= r - 1) continue;
+                    if (g[idx(wx2, wy2)] !== 0) {
+                      pick = d;
+                      break;
+                    }
+                  }
+                }
+                if (pick < 0) continue;
+                var odx = D[pick][0],
+                  ody = D[pick][1];
+                g[idx(x + odx, y + ody)] = 0;
+                openPassages.push({ x: x + odx, y: y + ody, dx: odx, dy: ody });
+                changed = true;
+              }
+          }
+          return g;
+        }
+        /* build a level's maze from its hand-authored spec: full straight
+   corridors on every odd row, right-angle links between them, and gaps that
+   pinch a corridor. Every pinch is then opened back up by openDeadEnds, so
+   the maze keeps its shape but no corridor ever dead-ends. The outer-ring
+   links keep the whole level connected. */
+        function buildFixedMaze(c, r, spec) {
+          var g = new Uint8Array(c * r),
+            i,
+            x,
+            y;
+          for (i = 0; i < g.length; i++) g[i] = 1;
+          function idx(x2, y2) {
+            return y2 * c + x2;
+          }
+          for (y = 1; y < r - 1; y += 2) for (x = 1; x < c - 1; x++) g[idx(x, y)] = 0;
+          for (i = 0; i < spec.links.length; i++) {
+            var L = spec.links[i],
+              lx = L[1],
+              ly = L[0];
+            if (lx > 0 && lx < c - 1 && ly > 0 && ly < r - 1) g[idx(lx, ly)] = 0;
+          }
+          for (i = 0; i < spec.gaps.length; i++) {
+            var G = spec.gaps[i],
+              gx = G[1],
+              gy = G[0];
+            if (gx > 0 && gx < c - 1 && gy > 0 && gy < r - 1) g[idx(gx, gy)] = 1;
+          }
+          /* no dead ends: every pinched corridor gets a second opening so the
+     player can always pass through to the far side */
+          openDeadEnds(g, c, r);
+          return g;
+        }
+        function isWall(x, y) {
+          if (x < 0 || y < 0 || x >= cols || y >= rows) return true;
+          return grid[y * cols + x] === 1;
+        }
+
+        /* the portal sits at the END of the maze: the corridor cell with the longest
+   path from the spawn, so the run to it sweeps the whole maze and every gem
+   can be collected along the way. Because it is the deepest point, routes to
+   gems never pass through it, so the level can't end early by accident.
+   Only well-connected corridor cells (2+ open sides) qualify so it never
+   sits crammed in a dead-end pocket that reads as outside the maze */
+        function placeExit(rnd) {
+          var D = [
+            [1, 0],
+            [-1, 0],
+            [0, 1],
+            [0, -1],
+          ];
+          var dist = new Int32Array(cols * rows).fill(-1);
+          var q = [cols + 1],
+            head = 0;
+          dist[cols + 1] = 0;
+          while (head < q.length) {
+            var cur = q[head++],
+              cx = cur % cols,
+              cy = (cur - cx) / cols;
+            for (var d = 0; d < 4; d++) {
+              var nx = cx + D[d][0],
+                ny = cy + D[d][1];
+              if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+              var ni = ny * cols + nx;
+              if (grid[ni] !== 0 || dist[ni] !== -1) continue;
+              dist[ni] = dist[cur] + 1;
+              q.push(ni);
+            }
+          }
+          var best = null,
+            bestScore = -1,
+            x,
+            y,
+            open,
+            score;
+          for (y = 1; y <= rows - 2; y++)
+            for (x = 1; x <= cols - 2; x++) {
+              var pi = y * cols + x;
+              if (grid[pi] !== 0 || dist[pi] < 0) continue;
+              open = 0;
+              if (!isWall(x + 1, y)) open++;
+              if (!isWall(x - 1, y)) open++;
+              if (!isWall(x, y + 1)) open++;
+              if (!isWall(x, y - 1)) open++;
+              if (open < 2) continue;
+              score = dist[pi] * 100 + open * 10 + rnd() * 4;
+              if (score > bestScore) {
+                bestScore = score;
+                best = { x: x, y: y };
+              }
+            }
+          if (!best) {
+            for (y = 1; y <= rows - 2; y++)
+              for (x = 1; x <= cols - 2; x++) {
+                var pi2 = y * cols + x;
+                if (grid[pi2] !== 0 || dist[pi2] < 0) continue;
+                if (dist[pi2] > bestScore) {
+                  bestScore = dist[pi2];
+                  best = { x: x, y: y };
+                }
+              }
+          }
+          if (!best) best = { x: cols - 2, y: rows - 2 };
+          exitC = { x: best.x + 0.5, y: best.y + 0.5 };
+        }
+
+        function placeGems(rnd) {
+          var easy = levelIndex === 1;
+          /* level 1: diamonds sit right off the main corridors near the spawn;
+     deeper levels push the hunt further and further from the start */
+          var minStart = easy ? 2 : 4 + Math.floor((levelIndex - 1) / 3);
+          var exCell = Math.round(exitC.x - 0.5),
+            eyCell = Math.round(exitC.y - 0.5);
+          /* reachability gate: BFS from the spawn so a diamond can only ever land on
+     a cell the orb can actually pathfind to */
+          var reach = bfsPrev(1, 1);
+          var cells = [],
+            openCells = [];
+          for (var y = 1; y < rows - 1; y++)
+            for (var x = 1; x < cols - 1; x++) {
+              if (grid[y * cols + x] !== 0) continue;
+              if (reach[y * cols + x] === -1) continue;
+              if (Math.abs(x - 1) + Math.abs(y - 1) < minStart) continue;
+              /* keep the portal approach clear: no diamonds spawn near the exit, so a
+       player who skipped gems finishes without them instead of sweeping them */
+              if (Math.abs(x - exCell) + Math.abs(y - eyCell) < 4) continue;
+              var open = 0;
+              if (!isWall(x + 1, y)) open++;
+              if (!isWall(x - 1, y)) open++;
+              if (!isWall(x, y + 1)) open++;
+              if (!isWall(x, y - 1)) open++;
+              var cell = { x: x, y: y, open: open, dist: Math.abs(x - 1) + Math.abs(y - 1) };
+              cells.push(cell);
+              if (open >= 2) openCells.push(cell);
+            }
+          for (var i = cells.length - 1; i > 0; i--) {
+            var j = Math.floor(rnd() * (i + 1));
+            var t = cells[i];
+            cells[i] = cells[j];
+            cells[j] = t;
+          }
+          for (var i2 = openCells.length - 1; i2 > 0; i2--) {
+            var j2 = Math.floor(rnd() * (i2 + 1));
+            var t2 = openCells[i2];
+            openCells[i2] = openCells[j2];
+            openCells[j2] = t2;
+          }
+          /* level 1: diamonds sit in open corridors near the start; levels 2-10:
+     diamonds hide in dead-ends far from the start, and the hunt deepens
+     with every level */
+          var deadBonus = 10 + Math.round(clamp((levelIndex - 1) / 9, 0, 1) * 10);
+          function byEasy(a, b) {
+            var oa = a.open >= 2 ? 0 : 1,
+              ob = b.open >= 2 ? 0 : 1;
+            if (oa !== ob) return oa - ob;
+            return a.dist - b.dist;
+          }
+          function byDeep(a, b) {
+            return b.dist + (b.open <= 1 ? deadBonus : 0) - (a.dist + (a.open <= 1 ? deadBonus : 0));
+          }
+          cells.sort(easy ? byEasy : byDeep);
+          openCells.sort(easy ? byEasy : byDeep);
+          var picked = [];
+          /* spread the diamonds wide apart: with tap-to-move the orb beelines to any
+     spot, so clustered gems would fall to a single sweep — wide spacing makes
+     every diamond its own deliberate, satisfying trip. Every level uses the
+     same farthest-point sampling: each new gem lands at the cell farthest
+     from every gem already picked, so the set spans the whole maze instead of
+     clustering in one region. Level 1 draws from open corridors only, so no
+     diamond ends up tucked in a dead-end pocket that feels sealed off */
+          var pool = easy ? openCells : cells;
+          if (pool.length < totalGems) pool = cells;
+          var far = null,
+            farD = -1;
+          for (var f0 = 0; f0 < pool.length; f0++) {
+            var d0 = Math.abs(pool[f0].x - 1) + Math.abs(pool[f0].y - 1);
+            if (d0 > farD) {
+              farD = d0;
+              far = pool[f0];
+            }
+          }
+          if (far) picked.push(far);
+          while (picked.length < totalGems) {
+            var bestC = null,
+              bestD = -1;
+            for (var f1 = 0; f1 < pool.length; f1++) {
+              var cc = pool[f1];
+              if (picked.indexOf(cc) >= 0) continue;
+              var dm = 1e9;
+              for (var f2 = 0; f2 < picked.length; f2++) {
+                var dd = Math.abs(picked[f2].x - cc.x) + Math.abs(picked[f2].y - cc.y);
+                if (dd < dm) dm = dd;
+              }
+              if (dm > bestD) {
+                bestD = dm;
+                bestC = cc;
+              }
+            }
+            if (!bestC) break;
+            picked.push(bestC);
+          }
+          /* guarantee the full count so the HUD total always matches real, collectible
+     diamonds: relax spacing, then the portal margin — never reachability */
+          for (var k2 = 0; k2 < cells.length && picked.length < totalGems; k2++) {
+            if (picked.indexOf(cells[k2]) < 0) picked.push(cells[k2]);
+          }
+          for (var y3 = 1; y3 < rows - 1 && picked.length < totalGems; y3++)
+            for (var x3 = 1; x3 < cols - 1 && picked.length < totalGems; x3++) {
+              if (grid[y3 * cols + x3] !== 0 || reach[y3 * cols + x3] === -1) continue;
+              if (x3 === exCell && y3 === eyCell) continue;
+              if (Math.abs(x3 - 1) + Math.abs(y3 - 1) < minStart) continue;
+              var dup = false;
+              for (var p3 = 0; p3 < picked.length; p3++)
+                if (picked[p3].x === x3 && picked[p3].y === y3) {
+                  dup = true;
+                  break;
+                }
+              if (!dup) picked.push({ x: x3, y: y3, open: 0, dist: 0 });
+            }
+          gems = [];
+          for (var g = 0; g < picked.length; g++)
+            gems.push({ x: picked[g].x + 0.5, y: picked[g].y + 0.5, got: false, ph: rnd() * 6.283 });
+        }
+
+        /* shield pickups: a few protective bubbles scattered through the maze.
+   Grabbing one wraps the orb in a shield for a few seconds, so urchin contact
+   bursts the urchin instead of knocking the orb back to the start. */
+        function placeShields(rnd) {
+          shields = [];
+          var count = levelIndex <= 2 ? 2 : levelIndex <= 6 ? 2 : 3;
+          var exCell = Math.round(exitC.x - 0.5),
+            eyCell = Math.round(exitC.y - 0.5);
+          var reach = bfsPrev(1, 1),
+            cand = [],
+            x,
+            y;
+          for (y = 1; y < rows - 1; y++)
+            for (x = 1; x < cols - 1; x++) {
+              var pi = y * cols + x;
+              if (grid[pi] !== 0 || reach[pi] === -1) continue;
+              if (Math.abs(x - 1) + Math.abs(y - 1) < 4) continue;
+              if (Math.abs(x - exCell) + Math.abs(y - eyCell) < 3) continue;
+              /* even spacing: shields keep a clear gap from every diamond so the
+     pickups read as separate, deliberate stops rather than a cluster */
+              var nearGem = false;
+              for (var g = 0; g < gems.length; g++)
+                if (Math.abs(Math.floor(gems[g].x) - x) + Math.abs(Math.floor(gems[g].y) - y) < 3) {
+                  nearGem = true;
+                  break;
+                }
+              if (nearGem) continue;
+              var onUrchin = false;
+              for (var u = 0; u < urchins.length; u++)
+                if (Math.abs(urchins[u].scx - x) + Math.abs(urchins[u].scy - y) < 3) {
+                  onUrchin = true;
+                  break;
+                }
+              if (onUrchin) continue;
+              cand.push({ x: x, y: y });
+            }
+          for (var i = cand.length - 1; i > 0; i--) {
+            var j = Math.floor(rnd() * (i + 1));
+            var t = cand[i];
+            cand[i] = cand[j];
+            cand[j] = t;
+          }
+          var minGap = 6;
+          while (shields.length < count && minGap >= 1) {
+            for (var c = 0; c < cand.length && shields.length < count; c++) {
+              var cc = cand[c],
+                ok = true;
+              for (var s = 0; s < shields.length; s++)
+                if (Math.abs(shields[s].x - cc.x) + Math.abs(shields[s].y - cc.y) < minGap) {
+                  ok = false;
+                  break;
+                }
+              if (ok) shields.push({ x: cc.x + 0.5, y: cc.y + 0.5, got: false, ph: rnd() * 6.283 });
+            }
+            minGap--;
+          }
+        }
+
+        /* ---------------- urchins: spiky hazards patrolling the corridors ----------------
+   Contact knocks the orb back to the start (gems and score are kept), so
+   sends must be timed around their patrols. They never camp the start. */
+        function pickUrchinDir(u) {
+          var cx = Math.round(u.x - 0.5),
+            cy = Math.round(u.y - 0.5),
+            opts = [],
+            fwd = -1,
+            back = -1,
+            d;
+          for (d = 0; d < 4; d++) {
+            var dx = DIRS4[d][0],
+              dy = DIRS4[d][1],
+              nx = cx + dx,
+              ny = cy + dy;
+            if (nx < 0 || ny < 0 || nx >= cols || ny >= rows || grid[ny * cols + nx] !== 0) continue;
+            opts.push(d);
+            if (dx === u.dx && dy === u.dy) fwd = d;
+            if (dx === -u.dx && dy === -u.dy) back = d;
+          }
+          if (!opts.length) {
+            u.tx = u.x;
+            u.ty = u.y;
+            return;
+          }
+          var pool = [];
+          for (d = 0; d < opts.length; d++) if (opts[d] !== back) pool.push(opts[d]);
+          if (!pool.length) pool = opts;
+          var pick;
+          if (fwd >= 0 && pool.indexOf(fwd) >= 0 && Math.random() < 0.62) pick = fwd;
+          else pick = pool[Math.floor(Math.random() * pool.length)];
+          u.dx = DIRS4[pick][0];
+          u.dy = DIRS4[pick][1];
+          u.tx = cx + u.dx + 0.5;
+          u.ty = cy + u.dy + 0.5;
+        }
+        function makeUrchin(cx, cy, spd, rnd) {
+          var u = {
+            x: cx + 0.5,
+            y: cy + 0.5,
+            scx: cx,
+            scy: cy,
+            dx: 0,
+            dy: 0,
+            tx: cx + 0.5,
+            ty: cy + 0.5,
+            spd: spd,
+            ph: rnd() * 6.283,
+            moving: 0,
+            hx: 0,
+            hy: 0,
+            spawn: 0,
+          };
+          pickUrchinDir(u);
+          return u;
+        }
+        function placeUrchins(rnd) {
+          urchins = [];
+          var count = 1 + Math.round((levelIndex - 1) * 0.67);
+          var spd = 1.35 + 0.11 * (levelIndex - 1);
+          var exCell = Math.round(exitC.x - 0.5),
+            eyCell = Math.round(exitC.y - 0.5);
+          var reach = bfsPrev(1, 1),
+            cand = [],
+            x,
+            y;
+          for (y = 1; y < rows - 1; y++)
+            for (x = 1; x < cols - 1; x++) {
+              var pi = y * cols + x;
+              if (grid[pi] !== 0 || reach[pi] === -1) continue;
+              /* level 4: keep urchins well clear of the spawn so the player gets a
+     calm stretch to read the maze and plan before any hazard is in play */
+              var startClear = levelIndex === 1 ? 7 : levelIndex === 4 ? 13 : 6;
+              if (Math.abs(x - 1) + Math.abs(y - 1) < startClear) continue;
+              if (Math.abs(x - exCell) + Math.abs(y - eyCell) <= 1) continue;
+              /* even spacing: urchins keep a clear gap from every diamond and
+     shield, so hazards never sit on top of a pickup and each corridor
+     reads as its own beat — grab, defend, advance */
+              var nearGem = false;
+              for (var g2 = 0; g2 < gems.length; g2++)
+                if (Math.abs(Math.floor(gems[g2].x) - x) + Math.abs(Math.floor(gems[g2].y) - y) < 3) {
+                  nearGem = true;
+                  break;
+                }
+              if (nearGem) continue;
+              var nearShield = false;
+              for (var sh2 = 0; sh2 < shields.length; sh2++)
+                if (Math.abs(Math.floor(shields[sh2].x) - x) + Math.abs(Math.floor(shields[sh2].y) - y) < 3) {
+                  nearShield = true;
+                  break;
+                }
+              if (nearShield) continue;
+              cand.push({ x: x, y: y });
+            }
+          for (var i2 = cand.length - 1; i2 > 0; i2--) {
+            var j = Math.floor(rnd() * (i2 + 1));
+            var t2 = cand[i2];
+            cand[i2] = cand[j];
+            cand[j] = t2;
+          }
+          var minGap = 4;
+          while (urchins.length < count && minGap >= 1) {
+            for (var c3 = 0; c3 < cand.length && urchins.length < count; c3++) {
+              var cc = cand[c3],
+                ok = true;
+              for (var u2 = 0; u2 < urchins.length; u2++)
+                if (Math.abs(urchins[u2].scx - cc.x) + Math.abs(urchins[u2].scy - cc.y) < minGap) {
+                  ok = false;
+                  break;
+                }
+              if (ok) urchins.push(makeUrchin(cc.x, cc.y, spd, rnd));
+            }
+            minGap--;
+          }
+        }
+        function updateUrchins(dt) {
+          for (var i = 0; i < urchins.length; i++) {
+            var u = urchins[i],
+              dx = u.tx - u.x,
+              dy = u.ty - u.y,
+              d = Math.sqrt(dx * dx + dy * dy),
+              step = u.spd * dt;
+            if (d <= step || d < 1e-6) {
+              u.x = u.tx;
+              u.y = u.ty;
+              pickUrchinDir(u);
+              u.moving = 0;
+            } else {
+              u.x += (dx / d) * step;
+              u.y += (dy / d) * step;
+              u.hx = dx / d;
+              u.hy = dy / d;
+              u.moving = 1;
+              /* bubble trail: little air bubbles puff off behind a travelling urchin */
+              u.spawn += dt;
+              if (u.spawn >= 0.13) {
+                u.spawn = 0;
+                particles.push({
+                  x: u.x - u.hx * 0.35 + (Math.random() - 0.5) * 0.22,
+                  y: u.y - u.hy * 0.35 + (Math.random() - 0.5) * 0.22,
+                  vx: (Math.random() - 0.5) * 0.5,
+                  vy: -0.45 - Math.random() * 0.5,
+                  life: 0.55,
+                  max: 0.55,
+                  color: "rgba(210,240,255,0.65)",
+                  r: 0.02 + Math.random() * 0.03,
+                  grav: 0,
+                });
+              }
+            }
+          }
+        }
+        function relocateUrchin(uu) {
+          var exCell = Math.round(exitC.x - 0.5),
+            eyCell = Math.round(exitC.y - 0.5);
+          for (var tries = 0; tries < 50; tries++) {
+            var x = 1 + Math.floor(Math.random() * (cols - 2)),
+              y = 1 + Math.floor(Math.random() * (rows - 2));
+            if (grid[y * cols + x] !== 0) continue;
+            if (Math.abs(x - 1) + Math.abs(y - 1) < 8) continue;
+            if (Math.abs(x - exCell) + Math.abs(y - eyCell) <= 1) continue;
+            uu.x = x + 0.5;
+            uu.y = y + 0.5;
+            uu.scx = x;
+            uu.scy = y;
+            uu.dx = 0;
+            uu.dy = 0;
+            pickUrchinDir(uu);
+            return;
+          }
+        }
+        /* knocked back to the start: gems and score are kept, and nearby urchins are
+   pushed away so the player is safe while re-planning */
+        function knockback() {
+          burst(player.x, player.y, 10, ["#ff5a7e", "#ff8296", "#ffd166", "#ffffff"]);
+          shakeT = shakeDur;
+          flashT = FLASH_DUR;
+          playContactSfx();
+          haptic("hard");
+          player.x = 1.5;
+          player.y = 1.5;
+          dirX = 0;
+          dirY = 1;
+          /* respawn clip lands a clear beat after the contact hit, so the two
+     sounds read as separate events instead of overlapping */
+          setTimeout(playRespawnSfx, 900);
+          path = null;
+          bounce = null;
+          bouncePlan = null;
+          panning = false;
+          trail.length = 0;
+          invulnT = 2;
+          for (var i = 0; i < urchins.length; i++) {
+            var uu = urchins[i];
+            if (Math.abs(uu.x - 1.5) + Math.abs(uu.y - 1.5) < 4.5) relocateUrchin(uu);
+          }
+          updateResume();
+          saveRunState();
+        }
+
+        /* ---------------- aesthetic clutter: cracks, moss, dust (non-colliding) ---------------- */
+        function makeGlowSprite(inner, outer) {
+          var s = document.createElement("canvas");
+          s.width = s.height = 64;
+          var c = s.getContext("2d");
+          var g = c.createRadialGradient(32, 32, 0, 32, 32, 32);
+          g.addColorStop(0, "rgba(" + inner + ",0.85)");
+          g.addColorStop(0.35, "rgba(" + outer + ",0.38)");
+          g.addColorStop(1, "rgba(" + outer + ",0)");
+          c.fillStyle = g;
+          c.fillRect(0, 0, 64, 64);
+          return s;
+        }
+        function ensureMossSprites() {
+          if (mossSprites) return;
+          mossSprites = [makeGlowSprite("200,255,225", "125,255,190"), makeGlowSprite("225,255,255", "111,247,255")];
+        }
+        function genDecor() {
+          ensureMossSprites();
+          var rnd = mulberry32(levelIndex * 104729 + 77);
+          cracks.length = 0;
+          mosses.length = 0;
+          dusts.length = 0;
+          specks.length = 0;
+          var floors = [],
+            walls = [],
+            x,
+            y,
+            i,
+            k;
+          for (y = 0; y < rows; y++)
+            for (x = 0; x < cols; x++) {
+              if (grid[y * cols + x] === 0) {
+                if (Math.abs(x - 1) + Math.abs(y - 1) < 3) continue;
+                if (x === Math.round(exitC.x - 0.5) && y === Math.round(exitC.y - 0.5)) continue;
+                floors.push({ x: x, y: y });
+              } else walls.push({ x: x, y: y });
+            }
+          if (!floors.length) return;
+          /* floor cracks: short jagged hairlines on open cells */
+          var nC = Math.min(floors.length, 8 + levelIndex * 2);
+          for (i = 0; i < nC; i++) {
+            var c0 = floors[Math.floor(rnd() * floors.length)];
+            var px = c0.x + 0.25 + rnd() * 0.5,
+              py = c0.y + 0.25 + rnd() * 0.5;
+            var ang = rnd() * 6.283,
+              segs = 2 + Math.floor(rnd() * 3),
+              pts = [{ x: px, y: py }];
+            for (k = 0; k < segs; k++) {
+              ang += (rnd() - 0.5) * 1.7;
+              px += Math.cos(ang) * (0.1 + rnd() * 0.16);
+              py += Math.sin(ang) * (0.1 + rnd() * 0.16);
+              pts.push({ x: px, y: py });
+            }
+            cracks.push(pts);
+          }
+          /* specks: tiny pebbles scattered across the floor */
+          var nS = Math.min(floors.length, 18 + levelIndex);
+          for (i = 0; i < nS; i++) {
+            var s0 = floors[Math.floor(rnd() * floors.length)];
+            specks.push({ x: s0.x + 0.15 + rnd() * 0.7, y: s0.y + 0.15 + rnd() * 0.7, r: 0.03 + rnd() * 0.05 });
+          }
+          /* glowing moss tucked into the corners of wall tiles */
+          var nM = Math.min(walls.length, 14 + levelIndex * 2),
+            tries = 0;
+          var D = [
+            [0, -1],
+            [0, 1],
+            [-1, 0],
+            [1, 0],
+          ];
+          while (mosses.length < nM && tries < nM * 5) {
+            tries++;
+            var w = walls[Math.floor(rnd() * walls.length)];
+            var sides = [];
+            for (k = 0; k < 4; k++) if (!isWall(w.x + D[k][0], w.y + D[k][1])) sides.push(D[k]);
+            if (!sides.length) continue;
+            var sd = sides[Math.floor(rnd() * sides.length)];
+            var fx = w.x + sd[0] + 0.5,
+              fy = w.y + sd[1] + 0.5;
+            var exm = w.x + 0.5 + sd[0] * 0.5,
+              eym = w.y + 0.5 + sd[1] * 0.5;
+            var pk = rnd() < 0.5 ? 1 : -1;
+            var cx2 = exm - sd[1] * 0.5 * pk,
+              cy2 = eym + sd[0] * 0.5 * pk;
+            var ddx = fx - cx2,
+              ddy = fy - cy2,
+              dl = Math.sqrt(ddx * ddx + ddy * ddy) || 1;
+            var off2 = 0.14 + rnd() * 0.1;
+            var mx2 = cx2 + (ddx / dl) * off2,
+              my2 = cy2 + (ddy / dl) * off2;
+            var ok2 = true;
+            for (k = 0; k < mosses.length; k++) {
+              if (Math.abs(mosses[k].x - mx2) + Math.abs(mosses[k].y - my2) < 0.9) {
+                ok2 = false;
+                break;
+              }
+            }
+            if (ok2) mosses.push({ x: mx2, y: my2, r: 0.3 + rnd() * 0.22, ph: rnd() * 6.283, teal: rnd() < 0.3 });
+          }
+          /* drifting dust motes inside the maze */
+          var nD = clamp(Math.round((cols * rows) / 16), 12, 26);
+          for (i = 0; i < nD; i++) {
+            dusts.push({
+              bx: rnd(),
+              by: 0.08 + rnd() * 0.84,
+              spd: (0.006 + rnd() * 0.02) * (rnd() < 0.5 ? -1 : 1),
+              wob: 0.4 + rnd() * 1.1,
+              ph: rnd() * 6.283,
+              r: 0.8 + rnd() * 1.3,
+              a: 0.1 + rnd() * 0.16,
+            });
+          }
+        }
+
+        /* ---------------- layout ---------------- */
+        function makeStars() {
+          stars = [];
+          var n = Math.min(110, Math.round((W * H) / 11000));
+          for (var i = 0; i < n; i++)
+            stars.push({
+              x: Math.random() * W,
+              y: Math.random() * H,
+              r: 0.4 + Math.random() * 1.2,
+              ph: Math.random() * 6.28,
+              sp: 0.5 + Math.random() * 1.5,
+              dv: 4 + Math.random() * 14,
+            });
+          bubbles = [];
+          var nb = Math.max(5, Math.round(W / 60));
+          for (var b = 0; b < nb; b++)
+            bubbles.push({
+              x: Math.random() * W,
+              r: 1.2 + Math.random() * 2.6,
+              spd: 14 + Math.random() * 26,
+              ph: Math.random() * 6.28,
+              wob: 6 + Math.random() * 14,
+              off: Math.random() * H,
+            });
+        }
+        function applySafe() {
+          hudEl.style.paddingTop = 10 + safe.top + "px";
+          hudEl.style.paddingLeft = 12 + safe.left + "px";
+          hudEl.style.paddingRight = 12 + safe.right + "px";
+        }
+        var lastW = 0,
+          lastH = 0;
+        function layout() {
+          W = window.innerWidth;
+          H = window.innerHeight;
+          DPR = Math.min(window.devicePixelRatio || 1, 2);
+          /* only rebuild the canvas + ambient scene when the viewport actually
+     changes: repeated layout calls (host game_info events, resize storms)
+     used to regenerate the starfield and menu scene every time, which made
+     the background visibly jump and flicker */
+          var sizeChanged = W !== lastW || H !== lastH;
+          lastW = W;
+          lastH = H;
+          if (sizeChanged) {
+            cv.width = Math.max(1, Math.round(W * DPR));
+            cv.height = Math.max(1, Math.round(H * DPR));
+            cv.style.width = W + "px";
+            cv.style.height = H + "px";
+            ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+          }
+          theme = THEMES[clamp(levelIndex, 1, THEMES.length) - 1] || THEMES[0];
+          starColor = theme.star;
+          bgHsl = [hexHsl(theme.bg[0]), hexHsl(theme.bg[1]), hexHsl(theme.bg[2])];
+          blobRgb = [hexRgb(theme.wallA), hexRgb(theme.star), hexRgb(theme.wallB)];
+          var sr = hexRgb(theme.star);
+          rayRgb = [Math.round(sr[0] * 0.5 + 127), Math.round(sr[1] * 0.5 + 127), Math.round(sr[2] * 0.5 + 127)];
+          if (sizeChanged) {
+            makeStars();
+            sizeMenuFx();
+          }
+          /* dynamic camera zoom: close view while gliding, pulled back when resting */
+          csIn = clamp(Math.min(W / 6.5, H / 10.5), 34, 84);
+          csOut = clamp(Math.min(W / 9, H / 13.5), 26, 60);
+          cs = clamp(cs, csOut, csIn);
+          mazeW = cs * cols;
+          mazeH = cs * rows;
+          if (sizeChanged) {
+            camX = player.x * cs;
+            camY = player.y * cs;
+          }
+        }
+        function rr(c, x, y, w, h, r) {
+          r = Math.min(r, w / 2, h / 2);
+          c.beginPath();
+          c.moveTo(x + r, y);
+          c.arcTo(x + w, y, x + w, y + h, r);
+          c.arcTo(x + w, y + h, x, y + h, r);
+          c.arcTo(x, y + h, x, y, r);
+          c.arcTo(x, y, x + w, y, r);
+          c.closePath();
+        }
+        function drawMazeLayer() {
+          if (!grid) return;
+          var o = ctx;
+          /* translucent floor: the living background glows through the corridors */
+          o.fillStyle = rgbaStr(hexRgb(theme.bg[2]), 0.55);
+          rr(o, 0, 0, mazeW, mazeH, 10);
+          o.fill();
+          o.strokeStyle = "rgba(130,160,255,0.05)";
+          o.lineWidth = 1;
+          for (var gx = 1; gx < cols; gx++) {
+            o.beginPath();
+            o.moveTo(gx * cs + 0.5, 0);
+            o.lineTo(gx * cs + 0.5, mazeH);
+            o.stroke();
+          }
+          for (var gy = 1; gy < rows; gy++) {
+            o.beginPath();
+            o.moveTo(0, gy * cs + 0.5);
+            o.lineTo(mazeW, gy * cs + 0.5);
+            o.stroke();
+          }
+          /* solid wall blocks: walled-in structure so the layout reads as a real maze */
+          var wb = hexRgb(theme.wallB);
+          o.fillStyle =
+            "rgba(" + Math.round(wb[0] * 0.2) + "," + Math.round(wb[1] * 0.2) + "," + Math.round(wb[2] * 0.2) + ",0.8)";
+          for (var wy2 = 0; wy2 < rows; wy2++)
+            for (var wx2 = 0; wx2 < cols; wx2++) {
+              if (grid[wy2 * cols + wx2] === 1) o.fillRect(wx2 * cs, wy2 * cs, cs + 0.5, cs + 0.5);
+            }
+          /* aesthetic clutter baked under the walls: cracks, specks, moss glows */
+          var ci, si, mi, p2, pts, m0, mr;
+          o.lineCap = "round";
+          o.strokeStyle = "rgba(0,0,0,0.30)";
+          o.lineWidth = 1;
+          for (ci = 0; ci < cracks.length; ci++) {
+            pts = cracks[ci];
+            o.beginPath();
+            o.moveTo(pts[0].x * cs, pts[0].y * cs);
+            for (p2 = 1; p2 < pts.length; p2++) o.lineTo(pts[p2].x * cs, pts[p2].y * cs);
+            o.stroke();
+          }
+          o.fillStyle = "rgba(255,255,255,0.10)";
+          for (si = 0; si < specks.length; si++) {
+            var sk = specks[si];
+            o.beginPath();
+            o.arc(sk.x * cs, sk.y * cs, Math.max(0.8, sk.r * cs), 0, 6.283);
+            o.fill();
+          }
+          if (mossSprites) {
+            for (mi = 0; mi < mosses.length; mi++) {
+              m0 = mosses[mi];
+              mr = m0.r * cs;
+              o.globalAlpha = m0.teal ? 0.34 : 0.44;
+              o.drawImage(mossSprites[m0.teal ? 1 : 0], m0.x * cs - mr, m0.y * cs - mr, mr * 2, mr * 2);
+            }
+            o.globalAlpha = 1;
+          }
+          /* maze walls: dashed lines tracing every wall/corridor boundary */
+          var lw = Math.max(2, cs * 0.12);
+          /* sparser dashes: short strokes with wide gaps for a classic maze look */
+          var dash = Math.max(3, cs * 0.3),
+            gap = Math.max(6, cs * 0.6);
+          var fdash = Math.max(4, cs * 0.5),
+            fgap = Math.max(3.5, cs * 0.4);
+          o.lineCap = "round";
+          o.beginPath();
+          var j, x, y, i, hSeg, vSeg, hStart, vStart;
+          for (j = 1; j < rows; j++) {
+            hStart = -1;
+            for (x = 0; x <= cols; x++) {
+              hSeg = x < cols && isWall(x, j - 1) !== isWall(x, j);
+              if (hSeg && hStart < 0) hStart = x;
+              if (!hSeg && hStart >= 0) {
+                o.moveTo(hStart * cs, j * cs);
+                o.lineTo(x * cs, j * cs);
+                hStart = -1;
+              }
+            }
+          }
+          for (i = 1; i < cols; i++) {
+            vStart = -1;
+            for (y = 0; y <= rows; y++) {
+              vSeg = y < rows && isWall(i - 1, y) !== isWall(i, y);
+              if (vSeg && vStart < 0) vStart = y;
+              if (!vSeg && vStart >= 0) {
+                o.moveTo(i * cs, vStart * cs);
+                o.lineTo(i * cs, y * cs);
+                vStart = -1;
+              }
+            }
+          }
+          /* dash complexity ramps from level 2 onward: plain dashes on level 1,
+     then dash-dot ornaments and interleaved echo lines for an ornate maze */
+          var lv = levelIndex,
+            dot = Math.max(1.6, lw * 1.35);
+          var layers = [[dash, gap]];
+          if (lv >= 2) layers = [[dash, gap * 0.95, dot, gap * 0.95]];
+          if (lv >= 4)
+            layers = [
+              [dash, gap * 0.9, dot, gap * 0.9, dot, gap * 0.9],
+              [dash * 0.55, gap * 0.8, dot, gap * 1.1],
+            ];
+          if (lv >= 7)
+            layers = [
+              [dash, gap * 0.85, dot, gap * 0.85, dot, gap * 0.85],
+              [dash * 0.55, gap * 0.75, dot, gap * 1.05],
+              [dot * 0.9, gap * 1.25, dash * 0.7, gap * 1.2],
+            ];
+          o.setLineDash(layers[0]);
+          o.strokeStyle = rgbaStr(hexRgb(theme.wallA), 0.22);
+          o.lineWidth = lw * 2.8;
+          o.stroke();
+          o.strokeStyle = theme.wallA;
+          o.lineWidth = lw;
+          o.stroke();
+          var echoCol = rgbaStr(hexRgb(theme.wallB), 0.9),
+            hiCol = rgbaStr(hexRgb(theme.star), 0.5);
+          for (var li2 = 1; li2 < layers.length; li2++) {
+            o.setLineDash(layers[li2]);
+            o.lineDashOffset = li2 * cs * 0.45;
+            o.strokeStyle = li2 === layers.length - 1 ? hiCol : echoCol;
+            o.lineWidth = Math.max(1.4, lw * 0.75);
+            o.stroke();
+          }
+          o.setLineDash([]);
+          o.lineDashOffset = 0;
+          /* dashed outer frame */
+          o.strokeStyle = "rgba(140,240,255,0.4)";
+          o.lineWidth = Math.max(2, cs * 0.09);
+          o.setLineDash(
+            lv >= 7
+              ? [fdash * 1.15, fgap, dot, fgap, dot, fgap]
+              : lv >= 4
+                ? [fdash * 1.15, fgap, dot, fgap]
+                : [fdash * 1.15, fgap],
+          );
+          rr(o, 1.5, 1.5, mazeW - 3, mazeH - 3, 9);
+          o.stroke();
+          o.setLineDash([]);
+          o.strokeStyle = "rgba(140,240,255,0.25)";
+          o.lineWidth = 2;
+          o.beginPath();
+          o.arc(1.5 * cs, 1.5 * cs, cs * 0.32, 0, 6.283);
+          o.stroke();
+        }
+
+        /* opened dead ends: a soft cyan glow marks every passage that now runs
+   through to the far side, so a corridor that looks like a dead end reads as
+   "keep going" instead of "turn back". Drawn under the fog layer, so it only
+   appears once the orb has explored that corridor. */
+        function drawPassages(t) {
+          if (!openPassages.length) return;
+          for (var i = 0; i < openPassages.length; i++) {
+            var p = openPassages[i];
+            if (revealed && !revealed[p.y * cols + p.x]) continue;
+            var x = mx + (p.x + 0.5) * cs,
+              y = my + (p.y + 0.5) * cs;
+            var pulse = 0.5 + 0.5 * Math.sin(t * 2.2 + i * 1.7);
+            var r = cs * 0.62;
+            var g = ctx.createRadialGradient(x, y, 0, x, y, r);
+            g.addColorStop(0, "rgba(140,240,255," + (0.2 + 0.14 * pulse).toFixed(3) + ")");
+            g.addColorStop(1, "rgba(140,240,255,0)");
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, 6.283);
+            ctx.fill();
+          }
+        }
+
+        /* ---------------- drawing ---------------- */
+        function drawBackground(t) {
+          /* abyss water: breathing depth gradient, snow, bubbles */
+          var g = ctx.createLinearGradient(0, 0, 0, H);
+          g.addColorStop(
+            0,
+            hslStr(bgHsl[0][0] + Math.sin(t * 0.32) * 9, bgHsl[0][1], bgHsl[0][2] + Math.sin(t * 0.47 + 1.3) * 3),
+          );
+          g.addColorStop(
+            0.55,
+            hslStr(bgHsl[1][0] + Math.sin(t * 0.27 + 2.2) * 9, bgHsl[1][1], bgHsl[1][2] + Math.sin(t * 0.38 + 3.1) * 3),
+          );
+          g.addColorStop(
+            1,
+            hslStr(bgHsl[2][0] + Math.sin(t * 0.22 + 4.4) * 9, bgHsl[2][1], bgHsl[2][2] + Math.sin(t * 0.31 + 5.2) * 3),
+          );
+          ctx.fillStyle = g;
+          ctx.fillRect(-24, -24, W + 48, H + 48);
+          ctx.globalCompositeOperation = "lighter";
+          /* bioluminescent haze drifting in the deep */
+          var ax = [0.3, 0.34, 0.26],
+            ay = [0.22, 0.3, 0.26],
+            brf = [0.4, 0.46, 0.38];
+          for (var b = 0; b < 3; b++) {
+            var bx = W * (0.5 + ax[b] * Math.sin(t * (0.26 + b * 0.05) + b * 2.1));
+            var by = H * (0.45 + ay[b] * Math.cos(t * (0.21 + b * 0.04) + b * 1.7));
+            var br = Math.max(W, H) * brf[b];
+            var a = 0.07 + 0.045 * (0.5 + 0.5 * Math.sin(t * 0.5 + b * 2.4));
+            var bg = ctx.createRadialGradient(bx, by, 0, bx, by, br);
+            bg.addColorStop(0, rgbaStr(blobRgb[b], a));
+            bg.addColorStop(1, rgbaStr(blobRgb[b], 0));
+            ctx.fillStyle = bg;
+            var x0 = Math.max(0, bx - br),
+              y0 = Math.max(0, by - br);
+            ctx.fillRect(x0, y0, Math.min(W, bx + br) - x0, Math.min(H, by + br) - y0);
+          }
+          ctx.globalCompositeOperation = "source-over";
+          /* marine snow drifting down */
+          ctx.fillStyle = starColor;
+          for (var i = 0; i < stars.length; i++) {
+            var s = stars[i];
+            var sy2 = (s.y + t * s.dv) % H;
+            var sx2 = s.x + Math.sin(t * s.sp + s.ph) * 9;
+            ctx.globalAlpha = 0.1 + 0.26 * (0.5 + 0.5 * Math.sin(t * s.sp + s.ph));
+            ctx.beginPath();
+            ctx.arc(sx2, sy2, s.r, 0, 6.283);
+            ctx.fill();
+          }
+          /* bubbles rising */
+          ctx.lineWidth = 1;
+          for (var b2 = 0; b2 < bubbles.length; b2++) {
+            var bu = bubbles[b2];
+            var by2 = H + 30 - ((t * bu.spd + bu.off) % (H + 60));
+            var bx2 = bu.x + Math.sin(t * 1.1 + bu.ph) * bu.wob;
+            ctx.globalAlpha = 0.2;
+            ctx.strokeStyle = "rgba(210,240,255,0.55)";
+            ctx.beginPath();
+            ctx.arc(bx2, by2, bu.r, 0, 6.283);
+            ctx.stroke();
+          }
+          ctx.globalAlpha = 1;
+          /* abyssal vignette */
+          var v = ctx.createRadialGradient(
+            W * 0.5,
+            H * 0.42,
+            Math.min(W, H) * 0.35,
+            W * 0.5,
+            H * 0.55,
+            Math.max(W, H) * 0.75,
+          );
+          v.addColorStop(0, "rgba(0,0,0,0)");
+          v.addColorStop(1, "rgba(1,3,12,0.5)");
+          ctx.fillStyle = v;
+          ctx.fillRect(-24, -24, W + 48, H + 48);
+        }
+        function drawDecor(t) {
+          if (!mosses.length && !dusts.length) return;
+          if (!mossSprites) ensureMossSprites();
+          var i, m;
+          for (i = 0; i < mosses.length; i++) {
+            m = mosses[i];
+            var pulse = 0.5 + 0.5 * Math.sin(t * 1.35 + m.ph);
+            var a = 0.1 + 0.16 * pulse;
+            var r = m.r * cs * (1.25 + 0.3 * pulse);
+            ctx.globalAlpha = a;
+            ctx.drawImage(mossSprites[m.teal ? 1 : 0], mx + m.x * cs - r, my + m.y * cs - r, r * 2, r * 2);
+          }
+          ctx.fillStyle = starColor;
+          for (i = 0; i < dusts.length; i++) {
+            var d = dusts[i];
+            var nx = (((d.bx + t * d.spd) % 1) + 1) % 1;
+            var px2 = mx + nx * mazeW,
+              py2 = my + d.by * mazeH + Math.sin(t * d.wob + d.ph) * cs * 0.35;
+            ctx.globalAlpha = d.a * (0.5 + 0.5 * Math.sin(t * 1.6 + d.ph * 2.3));
+            ctx.beginPath();
+            ctx.arc(px2, py2, d.r, 0, 6.283);
+            ctx.fill();
+          }
+          ctx.globalAlpha = 1;
+        }
+        function drawExit(t) {
+          var exX = Math.round(exitC.x - 0.5),
+            exY = Math.round(exitC.y - 0.5);
+          if (revealed && !revealed[exY * cols + exX]) return;
+          var x = mx + exitC.x * cs,
+            y = my + exitC.y * cs;
+          var r = cs * 0.36;
+          var ddx = player.x - exitC.x,
+            ddy = player.y - exitC.y;
+          var near = Math.sqrt(ddx * ddx + ddy * ddy);
+          var boost = near < 2 ? ((2 - near) / 2) * 0.35 : 0;
+          var ep = 0;
+          if (state === "entering") {
+            /* the portal swells and flares while the orb dives in */
+            ep = clamp(enterT / ENTER_DUR, 0, 1);
+            boost = Math.min(0.6, boost + 0.55 * ep);
+            r *= 1 + 0.3 * ep;
+          }
+          ctx.save();
+          ctx.strokeStyle = "rgba(110,255,180," + (0.65 + boost).toFixed(2) + ")";
+          ctx.lineWidth = Math.max(2, cs * 0.08);
+          ctx.setLineDash([cs * 0.3, cs * 0.24]);
+          ctx.lineDashOffset = -t * cs * 1.1;
+          ctx.beginPath();
+          ctx.arc(x, y, r, 0, 6.283);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          var g = ctx.createRadialGradient(x, y, 0, x, y, r);
+          g.addColorStop(0, "rgba(150,255,200," + (0.4 + boost).toFixed(2) + ")");
+          g.addColorStop(1, "rgba(150,255,200,0)");
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(x, y, r, 0, 6.283);
+          ctx.fill();
+          ctx.fillStyle = "rgba(220,255,235,0.95)";
+          ctx.beginPath();
+          ctx.arc(x, y, r * 0.22 * (1 + 0.25 * Math.sin(t * 4.5) + 0.5 * ep), 0, 6.283);
+          ctx.fill();
+          if (ep > 0) {
+            /* fast counter-spinning halo while the orb is being pulled in */
+            ctx.strokeStyle = "rgba(150,255,210," + (0.25 + 0.45 * ep).toFixed(2) + ")";
+            ctx.lineWidth = Math.max(1.5, cs * 0.05);
+            ctx.setLineDash([cs * 0.16, cs * 0.2]);
+            ctx.lineDashOffset = t * cs * 2.4;
+            ctx.beginPath();
+            ctx.arc(x, y, r * 1.4, 0, 6.283);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.lineDashOffset = 0;
+          }
+          ctx.restore();
+        }
+        function drawGems(t) {
+          for (var i = 0; i < gems.length; i++) {
+            var g = gems[i];
+            if (g.got) continue;
+            if (revealed && !revealed[Math.floor(g.y) * cols + Math.floor(g.x)]) continue;
+            var x = mx + g.x * cs,
+              y = my + g.y * cs;
+            var s = cs * 0.3 * (1 + 0.09 * Math.sin(t * 3.1 + g.ph));
+            ctx.fillStyle = "rgba(111,247,255,0.13)";
+            ctx.beginPath();
+            ctx.arc(x, y, s * 1.9, 0, 6.283);
+            ctx.fill();
+            if (gemReady) {
+              /* custom diamond sprite, aspect-preserved inside the gem's box */
+              var d = s * 2.7,
+                iw = gemImg.naturalWidth || 1,
+                ih = gemImg.naturalHeight || 1,
+                dw = d,
+                dh = d;
+              if (iw > ih) dh = (d * ih) / iw;
+              else if (ih > iw) dw = (d * iw) / ih;
+              ctx.drawImage(gemImg, x - dw / 2, y - dh / 2, dw, dh);
+            } else {
+              ctx.beginPath();
+              ctx.moveTo(x, y - s);
+              ctx.lineTo(x + s * 0.85, y - s * 0.2);
+              ctx.lineTo(x, y + s);
+              ctx.lineTo(x - s * 0.85, y - s * 0.2);
+              ctx.closePath();
+              var gr = ctx.createLinearGradient(x, y - s, x, y + s);
+              gr.addColorStop(0, "#d8ffff");
+              gr.addColorStop(0.45, "#5ef2ff");
+              gr.addColorStop(1, "#1fa6d9");
+              ctx.fillStyle = gr;
+              ctx.fill();
+              ctx.strokeStyle = "rgba(255,255,255,0.55)";
+              ctx.lineWidth = 1;
+              ctx.stroke();
+              ctx.beginPath();
+              ctx.moveTo(x - s * 0.85, y - s * 0.2);
+              ctx.lineTo(x + s * 0.85, y - s * 0.2);
+              ctx.stroke();
+            }
+            var gl = 0.5 + 0.5 * Math.sin(t * 2.4 + g.ph * 2.7);
+            if (gl > 0.8) {
+              var a = (gl - 0.8) / 0.2,
+                gx = x + s * 0.35,
+                gy = y - s * 0.55,
+                gl2 = s * 0.35;
+              ctx.globalAlpha = a;
+              ctx.strokeStyle = "#ffffff";
+              ctx.lineWidth = 1.5;
+              ctx.beginPath();
+              ctx.moveTo(gx - gl2, gy);
+              ctx.lineTo(gx + gl2, gy);
+              ctx.moveTo(gx, gy - gl2);
+              ctx.lineTo(gx, gy + gl2);
+              ctx.stroke();
+              ctx.globalAlpha = 1;
+            }
+          }
+        }
+        /* shield pickups: gold emblems that pulse in the corridors */
+        function drawShields(t) {
+          for (var i = 0; i < shields.length; i++) {
+            var s = shields[i];
+            if (s.got) continue;
+            if (revealed && !revealed[Math.floor(s.y) * cols + Math.floor(s.x)]) continue;
+            var x = mx + s.x * cs,
+              y = my + s.y * cs;
+            var pulse = 0.5 + 0.5 * Math.sin(t * 2.6 + s.ph);
+            var r = cs * 0.34 * (1 + 0.08 * pulse);
+            var g = ctx.createRadialGradient(x, y, 0, x, y, r * 2.1);
+            g.addColorStop(0, "rgba(255,209,102," + (0.22 + 0.16 * pulse).toFixed(3) + ")");
+            g.addColorStop(1, "rgba(255,209,102,0)");
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(x, y, r * 2.1, 0, 6.283);
+            ctx.fill();
+            ctx.save();
+            ctx.translate(x, y);
+            if (shieldReady) {
+              /* custom shield sprite, aspect-preserved inside the pickup's box */
+              var sd = r * 2.6,
+                siw = shieldImg.naturalWidth || 1,
+                sih = shieldImg.naturalHeight || 1,
+                sdw = sd,
+                sdh = sd;
+              if (siw > sih) sdh = (sd * sih) / siw;
+              else if (sih > siw) sdw = (sd * siw) / sih;
+              ctx.drawImage(shieldImg, -sdw / 2, -sdh / 2, sdw, sdh);
+            } else {
+              ctx.beginPath();
+              ctx.moveTo(0, -r);
+              ctx.lineTo(r * 0.82, -r * 0.55);
+              ctx.lineTo(r * 0.82, r * 0.15);
+              ctx.quadraticCurveTo(r * 0.82, r * 0.85, 0, r * 1.15);
+              ctx.quadraticCurveTo(-r * 0.82, r * 0.85, -r * 0.82, r * 0.15);
+              ctx.lineTo(-r * 0.82, -r * 0.55);
+              ctx.closePath();
+              var sg = ctx.createLinearGradient(0, -r, 0, r * 1.15);
+              sg.addColorStop(0, "#fff4cf");
+              sg.addColorStop(0.5, "#ffd166");
+              sg.addColorStop(1, "#e0a02e");
+              ctx.fillStyle = sg;
+              ctx.fill();
+              ctx.strokeStyle = "rgba(255,255,255,0.75)";
+              ctx.lineWidth = Math.max(1.2, cs * 0.035);
+              ctx.stroke();
+              ctx.strokeStyle = "rgba(90,60,10,0.5)";
+              ctx.lineWidth = Math.max(1.2, cs * 0.045);
+              ctx.beginPath();
+              ctx.moveTo(0, -r * 0.5);
+              ctx.lineTo(0, r * 0.7);
+              ctx.moveTo(-r * 0.45, -r * 0.05);
+              ctx.lineTo(r * 0.45, -r * 0.05);
+              ctx.stroke();
+            }
+            ctx.restore();
+          }
+        }
+        /* ---------------- fog of war ----------------
+   The maze starts hidden; the orb reveals corridors up to 3 open cells out
+   as it explores. Panning only ever shows what has already been explored. */
+        function revealAround() {
+          if (!revealed) return;
+          revGen++;
+          var s = curCell(),
+            q = [s.y * cols + s.x],
+            head = 0,
+            i,
+            d,
+            k;
+          revStamp[q[0]] = revGen;
+          revealed[q[0]] = 1;
+          for (d = 0; d < 4; d++) {
+            var n = q.length;
+            for (i = head; i < n; i++) {
+              var cur = q[i],
+                cx = cur % cols,
+                cy = (cur - cx) / cols;
+              for (k = 0; k < 4; k++) {
+                var nx = cx + DIRS4[k][0],
+                  ny = cy + DIRS4[k][1];
+                if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+                var ni = ny * cols + nx;
+                if (grid[ni] !== 0 || revStamp[ni] === revGen) continue;
+                revStamp[ni] = revGen;
+                revealed[ni] = 1;
+                q.push(ni);
+              }
+            }
+            head = n;
+          }
+        }
+        function revealStr() {
+          if (!revealed) return "";
+          var s = "";
+          for (var i2 = 0; i2 < revealed.length; i2++) s += revealed[i2];
+          return s;
+        }
+        function drawUrchins(t) {
+          for (var i = 0; i < urchins.length; i++) {
+            var u = urchins[i];
+            if (revealed && !revealed[Math.floor(u.y) * cols + Math.floor(u.x)]) continue;
+            var x = mx + u.x * cs,
+              y = my + u.y * cs;
+            var pulse = 0.5 + 0.5 * Math.sin(t * 3.2 + u.ph);
+            var mv = u.moving ? 1 : 0;
+            /* glow: brighter and faster while the urchin is travelling */
+            var g = ctx.createRadialGradient(x, y, 0, x, y, cs * 1.0);
+            g.addColorStop(0, "rgba(255,90,126," + (0.28 + 0.2 * pulse + 0.1 * mv).toFixed(3) + ")");
+            g.addColorStop(1, "rgba(255,90,126,0)");
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(x, y, cs * 1.0, 0, 6.283);
+            ctx.fill();
+            /* idle wobble that speeds up while travelling, leaning into the heading */
+            var wob = Math.sin(t * (2.4 + 2.4 * mv) + u.ph) * (0.09 + 0.11 * mv);
+            var lean = u.moving && (u.hx || u.hy) ? Math.atan2(u.hy, u.hx) - Math.PI / 2 : 0;
+            /* squash & stretch breathing: x and y scale out of phase */
+            var sq = 0.075 + 0.055 * mv;
+            var br = Math.sin(t * (3 + 1.8 * mv) + u.ph);
+            var sx2 = 1 + sq * br,
+              sy2 = 1 - sq * br;
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(lean + wob);
+            ctx.scale(sx2, sy2);
+            if (urchinReady) {
+              /* custom urchin sprite, aspect-preserved in its box */
+              var d = cs * 1.15 * (1 + 0.05 * pulse),
+                iw = urchinImg.naturalWidth || 1,
+                ih = urchinImg.naturalHeight || 1,
+                dw = d,
+                dh = d;
+              if (iw > ih) dh = (d * ih) / iw;
+              else if (ih > iw) dw = (d * iw) / ih;
+              ctx.drawImage(urchinImg, -dw / 2, -dh / 2, dw, dh);
+              /* spine wiggle overlay: short spikes around the rim that spin and
+         lengthen, so the sprite visibly bristles as it moves */
+              ctx.fillStyle = "rgba(255,107,138," + (0.5 + 0.28 * pulse).toFixed(3) + ")";
+              var nS = 11,
+                rot = t * (0.7 + 1.1 * mv) + u.ph,
+                s2;
+              for (s2 = 0; s2 < nS; s2++) {
+                var a = rot + (s2 * 6.283) / nS;
+                var len = cs * (0.46 + 0.06 * Math.sin(t * (4 + 2 * mv) + s2 * 1.7 + u.ph));
+                ctx.beginPath();
+                ctx.moveTo(Math.cos(a - 0.16) * cs * 0.3, Math.sin(a - 0.16) * cs * 0.3);
+                ctx.lineTo(Math.cos(a) * len, Math.sin(a) * len);
+                ctx.lineTo(Math.cos(a + 0.16) * cs * 0.3, Math.sin(a + 0.16) * cs * 0.3);
+                ctx.closePath();
+                ctx.fill();
+              }
+            } else {
+              ctx.fillStyle = "rgba(255,107,138,0.95)";
+              var nS2 = 11,
+                rot2 = t * (0.7 + 1.1 * mv) + u.ph,
+                s3;
+              for (s3 = 0; s3 < nS2; s3++) {
+                var a2 = rot2 + (s3 * 6.283) / nS2;
+                var len2 = cs * (0.38 + 0.06 * Math.sin(t * (4 + 2 * mv) + s3 * 1.7 + u.ph));
+                ctx.beginPath();
+                ctx.moveTo(Math.cos(a2 - 0.18) * cs * 0.13, Math.sin(a2 - 0.18) * cs * 0.13);
+                ctx.lineTo(Math.cos(a2) * len2, Math.sin(a2) * len2);
+                ctx.lineTo(Math.cos(a2 + 0.18) * cs * 0.13, Math.sin(a2 + 0.18) * cs * 0.13);
+                ctx.closePath();
+                ctx.fill();
+              }
+              ctx.fillStyle = "#2b0b20";
+              ctx.beginPath();
+              ctx.arc(0, 0, cs * 0.19, 0, 6.283);
+              ctx.fill();
+              ctx.strokeStyle = "rgba(255,107,138,0.8)";
+              ctx.lineWidth = 1.5;
+              ctx.beginPath();
+              ctx.arc(0, 0, cs * 0.19, 0, 6.283);
+              ctx.stroke();
+              ctx.fillStyle = "rgba(255,90,126," + (0.5 + 0.4 * pulse).toFixed(3) + ")";
+              ctx.beginPath();
+              ctx.arc(0, 0, cs * 0.07, 0, 6.283);
+              ctx.fill();
+            }
+            ctx.restore();
+          }
+        }
+        function drawFog() {
+          if (!revealed) return;
+          var fc = hexRgb(theme.bg[2]);
+          ctx.fillStyle = "rgba(" + fc[0] + "," + fc[1] + "," + fc[2] + ",0.93)";
+          for (var y = 0; y < rows; y++)
+            for (var x = 0; x < cols; x++) {
+              if (!revealed[y * cols + x]) ctx.fillRect(x * cs, y * cs, cs + 0.5, cs + 0.5);
+            }
+          /* faint luminous edge along the exploration frontier */
+          ctx.strokeStyle = "rgba(140,240,255,0.12)";
+          ctx.lineWidth = 2;
+          ctx.lineCap = "round";
+          ctx.beginPath();
+          for (var y2 = 1; y2 < rows - 1; y2++)
+            for (var x2 = 1; x2 < cols - 1; x2++) {
+              var i3 = y2 * cols + x2;
+              if (!revealed[i3] || grid[i3] !== 0) continue;
+              if (grid[i3 + 1] === 0 && !revealed[i3 + 1]) {
+                ctx.moveTo((x2 + 1) * cs, y2 * cs);
+                ctx.lineTo((x2 + 1) * cs, (y2 + 1) * cs);
+              }
+              if (grid[i3 - 1] === 0 && !revealed[i3 - 1]) {
+                ctx.moveTo(x2 * cs, y2 * cs);
+                ctx.lineTo(x2 * cs, (y2 + 1) * cs);
+              }
+              if (grid[i3 - cols] === 0 && !revealed[i3 - cols]) {
+                ctx.moveTo(x2 * cs, y2 * cs);
+                ctx.lineTo((x2 + 1) * cs, y2 * cs);
+              }
+              if (grid[i3 + cols] === 0 && !revealed[i3 + cols]) {
+                ctx.moveTo(x2 * cs, (y2 + 1) * cs);
+                ctx.lineTo((x2 + 1) * cs, (y2 + 1) * cs);
+              }
+            }
+          ctx.stroke();
+        }
+        function drawParticles() {
+          for (var i = 0; i < particles.length; i++) {
+            var p = particles[i];
+            var lf = Math.max(0, Math.min(1, p.life / p.max));
+            var col = p.color || p.c || "#8ff7ff";
+            ctx.globalAlpha = lf;
+            if (p.ring) {
+              /* shockwave: expanding circle stroke that thins as it fades */
+              var rr2 = (p.r + (p.max - p.life) * p.grow) * cs;
+              ctx.strokeStyle = col;
+              ctx.lineWidth = Math.max(1.2, cs * 0.07 * lf);
+              ctx.beginPath();
+              ctx.arc(mx + p.x * cs, my + p.y * cs, rr2, 0, 6.283);
+              ctx.stroke();
+              continue;
+            }
+            /* pop scale: particles spawn enlarged and shrink toward their base size */
+            var rad = Math.max(1.2, p.r * cs * (1 + (p.pop || 0) * lf));
+            if (p.streak) {
+              /* motion streak: short round-capped line trailing the velocity */
+              ctx.strokeStyle = col;
+              ctx.lineWidth = rad;
+              ctx.lineCap = "round";
+              ctx.beginPath();
+              ctx.moveTo(mx + p.x * cs, my + p.y * cs);
+              ctx.lineTo(mx + (p.x - p.vx * 0.05) * cs, my + (p.y - p.vy * 0.05) * cs);
+              ctx.stroke();
+            } else {
+              ctx.fillStyle = col;
+              ctx.beginPath();
+              ctx.arc(mx + p.x * cs, my + p.y * cs, rad, 0, 6.283);
+              ctx.fill();
+            }
+          }
+          ctx.globalAlpha = 1;
+        }
+        /* neon motion-blur trail: fading gradient circles that shrink toward the
+   tail, additive-blended with a soft shadow glow behind the orb */
+        function drawTrail() {
+          var n = trail.length,
+            i,
+            p;
+          if (!n) return;
+          ctx.save();
+          ctx.globalCompositeOperation = "lighter";
+          for (i = 0; i < n; i++) {
+            p = trail[i];
+            var f = (i + 1) / n; /* 0 at the tail, 1 right behind the orb */
+            var x = mx + p.x * cs,
+              y = my + p.y * cs;
+            var r = cs * (0.05 + 0.26 * f); /* circles decrease in size toward the tail */
+            var a = 0.05 + 0.42 * f * f; /* alpha fades out along the tail */
+            var g = ctx.createRadialGradient(x, y, 0, x, y, r);
+            g.addColorStop(0, "rgba(210,252,255," + a.toFixed(3) + ")");
+            g.addColorStop(0.5, "rgba(125,232,255," + (a * 0.6).toFixed(3) + ")");
+            g.addColorStop(1, "rgba(94,242,255,0)");
+            ctx.globalAlpha = 1;
+            ctx.shadowColor = "rgba(125,232,255," + (0.5 * f).toFixed(3) + ")";
+            ctx.shadowBlur = cs * 0.4 * f; /* neon halo, strongest near the orb */
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, 6.283);
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+        function drawPlayer() {
+          if (orbHidden) return;
+          var x = mx + player.x * cs,
+            y = my + player.y * cs,
+            r = cs * R;
+          var moving = path && pathIdx < path.length ? 1 : 0;
+          var entering = state === "entering";
+          /* soft rebound: visual-only offset that peaks mid-bounce and settles back */
+          if (bounce) {
+            var bp = Math.min(bounce.t / bounce.dur, 1),
+              bo = Math.sin(bp * Math.PI) * bounce.amp * cs;
+            x += bounce.dx * bo;
+            y += bounce.dy * bo;
+          }
+          /* portal entry: glow, halo and sprite shrink and fade as the orb dives in */
+          var ep2 = clamp(enterT / ENTER_DUR, 0, 1);
+          var sc = entering ? Math.max(0.02, Math.pow(1 - ep2, 0.85)) : 1;
+          var al = entering ? clamp(1 - Math.max(0, ep2 - 0.55) / 0.45, 0, 1) : 1;
+          if (al < 1) ctx.globalAlpha = al;
+          /* animated glow: breathing pulse, expanding sonar rings, rotating halo */
+          var pulse = 1 + 0.05 * Math.sin(animT * (entering ? 9 : moving ? 6 : 3.2));
+          ctx.fillStyle = "rgba(140,240,255,0.16)";
+          ctx.beginPath();
+          ctx.arc(x, y, r * 1.9 * pulse * sc, 0, 6.283);
+          ctx.fill();
+          for (var ri = 0; ri < 3; ri++) {
+            var ph = (animT * (entering ? 1.6 : moving ? 0.8 : 0.45) + ri / 3) % 1;
+            var rad = r * 1.9 * (1 + ph * 1.5) * sc;
+            ctx.strokeStyle = "rgba(140,240,255," + ((1 - ph) * 0.32).toFixed(3) + ")";
+            ctx.lineWidth = Math.max(1.2, cs * 0.05 * (1 - ph * 0.7));
+            ctx.beginPath();
+            ctx.arc(x, y, rad, 0, 6.283);
+            ctx.stroke();
+          }
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(animT * (entering ? 5 : moving ? 1.4 : 0.45));
+          ctx.strokeStyle = "rgba(180,250,255,0.45)";
+          ctx.lineWidth = Math.max(1.2, cs * 0.04);
+          ctx.setLineDash([cs * 0.2, cs * 0.28]);
+          ctx.beginPath();
+          ctx.arc(0, 0, r * 1.9 * 1.28 * sc, 0, 6.283);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.restore();
+          if (orbReady) {
+            /* custom orb sprite, scaled up to fill the glow circle around it */
+            var d = r * 3.8 * sc;
+            if (d > 0.5) ctx.drawImage(orbImg, x - d / 2, y - d / 2, d, d);
+          } else {
+            var orbR = r * 1.5 * sc;
+            var g = ctx.createRadialGradient(x - orbR * 0.35, y - orbR * 0.35, orbR * 0.15, x, y, orbR);
+            g.addColorStop(0, "#ffffff");
+            g.addColorStop(0.55, "#a5f4ff");
+            g.addColorStop(1, "#38b9e6");
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(x, y, orbR, 0, 6.283);
+            ctx.fill();
+            var fx = dirX,
+              fy = dirY,
+              px = -fy,
+              py = fx;
+            var fw = orbR * 0.3,
+              side = orbR * 0.42,
+              er = Math.max(1.2, orbR * 0.15);
+            ctx.fillStyle = "#0b1030";
+            ctx.beginPath();
+            ctx.arc(x + fx * fw + px * side, y + fy * fw + py * side, er, 0, 6.283);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(x + fx * fw - px * side, y + fy * fw - py * side, er, 0, 6.283);
+            ctx.fill();
+          }
+          /* active shield: a shimmering bubble wrapped around the orb */
+          if (shieldT > 0) {
+            var sf = clamp(shieldT / SHIELD_DUR, 0, 1);
+            var blink = shieldT < 2 ? 0.45 + 0.55 * Math.abs(Math.sin(animT * 9)) : 1;
+            var br2 = r * 2.5 * sc;
+            ctx.save();
+            ctx.globalAlpha = (0.35 + 0.25 * sf) * blink;
+            var bg2 = ctx.createRadialGradient(x, y, br2 * 0.55, x, y, br2);
+            bg2.addColorStop(0, "rgba(255,209,102,0)");
+            bg2.addColorStop(0.75, "rgba(255,209,102,0.28)");
+            bg2.addColorStop(1, "rgba(255,244,207,0.55)");
+            ctx.fillStyle = bg2;
+            ctx.beginPath();
+            ctx.arc(x, y, br2, 0, 6.283);
+            ctx.fill();
+            ctx.globalAlpha = (0.6 + 0.4 * sf) * blink;
+            ctx.strokeStyle = "rgba(255,224,140,0.9)";
+            ctx.lineWidth = Math.max(1.4, cs * 0.05);
+            ctx.setLineDash([cs * 0.22, cs * 0.18]);
+            ctx.lineDashOffset = -animT * cs * 1.6;
+            ctx.beginPath();
+            ctx.arc(x, y, br2, 0, 6.283);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+          }
+          if (al < 1) ctx.globalAlpha = 1;
+        }
+        function render(t) {
+          ctx.clearRect(0, 0, W, H);
+          /* screen shake: random offset that decays over the shake window */
+          var shx = 0,
+            shy = 0;
+          if (shakeT > 0) {
+            var sk = shakeT / shakeDur;
+            shx = (Math.random() * 2 - 1) * shakeMag * sk;
+            shy = (Math.random() * 2 - 1) * shakeMag * sk;
+          }
+          ctx.save();
+          ctx.translate(shx, shy);
+          drawBackground(t);
+          if (grid) {
+            mx = W / 2 - camX;
+            my = H / 2 - camY;
+            ctx.save();
+            ctx.translate(mx, my);
+            drawMazeLayer();
+            ctx.restore();
+            drawDecor(t);
+            drawPassages(t);
+            drawExit(t);
+            drawGems(t);
+            drawShields(t);
+            drawUrchins(t);
+            /* trail is drawn UNDER the fog layer so it can never reveal a fogged cell,
+       no matter how the trail behavior changes later */
+            drawTrail();
+            ctx.save();
+            ctx.translate(mx, my);
+            drawFog();
+            ctx.restore();
+            drawParticles();
+            drawPopups();
+            drawPlayer();
+          }
+          /* red zap flash after a laser hit */
+          if (flashT > 0) {
+            ctx.fillStyle = "rgba(255,45,80," + ((flashT / FLASH_DUR) * 0.38).toFixed(3) + ")";
+            ctx.fillRect(-24, -24, W + 48, H + 48);
+          }
+          ctx.restore();
+        }
+
+        /* ---------------- input ---------------- */
+        /* tap-to-move: tap a spot and the orb pathfinds through the maze to it,
+   gliding corridor by corridor on its own; tap the orb to stop it, tap a
+   wall/laser and it glides as close as it can, then softly rebounds */
+        var path = null,
+          pathIdx = 0,
+          bounce = null,
+          bouncePlan = null;
+        var tap = { active: false, id: -1, sx: 0, sy: 0, dragged: false };
+        var pan = { active: false, id: -1, lx: 0, ly: 0 },
+          panning = false;
+        var TAP_TH = 14;
+        var DIRS4 = [
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1],
+        ];
+        function curCell() {
+          var cx = clamp(Math.round(player.x - 0.5), 0, cols - 1);
+          var cy = clamp(Math.round(player.y - 0.5), 0, rows - 1);
+          if (grid[cy * cols + cx] !== 0) {
+            cx = 1;
+            cy = 1;
+          }
+          return { x: cx, y: cy };
+        }
+        function bfsPrev(sx, sy) {
+          var prev = new Int32Array(cols * rows).fill(-1);
+          var si = sy * cols + sx;
+          prev[si] = si;
+          var q = [si],
+            head = 0;
+          while (head < q.length) {
+            var cur = q[head++],
+              cx = cur % cols,
+              cy = (cur - cx) / cols;
+            for (var d = 0; d < 4; d++) {
+              var nx = cx + DIRS4[d][0],
+                ny = cy + DIRS4[d][1];
+              if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+              var ni = ny * cols + nx;
+              if (grid[ni] !== 0 || prev[ni] !== -1) continue;
+              prev[ni] = cur;
+              q.push(ni);
+            }
+          }
+          return prev;
+        }
+        function setPathFromPrev(prev, s, ti) {
+          var si = s.y * cols + s.x,
+            cells = [],
+            cur = ti;
+          while (cur !== si) {
+            cells.push(cur);
+            cur = prev[cur];
+          }
+          cells.reverse();
+          var out = [];
+          for (var i = 0; i < cells.length; i++)
+            out.push({ x: (cells[i] % cols) + 0.5, y: Math.floor(cells[i] / cols) + 0.5 });
+          path = out;
+          pathIdx = 0;
+        }
+        function startBounce(dx, dy, amp, dur) {
+          var l = Math.sqrt(dx * dx + dy * dy);
+          if (l < 1e-6) {
+            dx = 0;
+            dy = 0;
+          } else {
+            dx /= l;
+            dy /= l;
+          }
+          bounce = { t: 0, dur: dur, dx: dx, dy: dy, amp: amp };
+        }
+        /* rebound feedback: sparks at the contact point plus a low thud */
+        function bounceFx(x, y, nx, ny) {
+          sparkBurst(x, y, nx, ny, 3);
+          playWallSfx();
+          haptic("light");
+        }
+        /* floor taps pathfind straight to the spot; wall/unreachable taps send the
+   orb to the closest reachable cell, where it rebounds toward the tap */
+        function handleTap(px, py) {
+          if (state !== "playing" || !grid) return;
+          panning = false; /* any tap hands the camera back to the orb */
+          var wx = (px - mx) / cs,
+            wy = (py - my) / cs;
+          var ddx = wx - player.x,
+            ddy = wy - player.y;
+          if (ddx * ddx + ddy * ddy < 0.81) {
+            /* tap on the orb: stop where it is */
+            path = null;
+            bouncePlan = null;
+            startBounce(dirX, dirY, 0.05, 0.26);
+            haptic("light");
+            return;
+          }
+          var cx = clamp(Math.floor(wx), 0, cols - 1),
+            cy = clamp(Math.floor(wy), 0, rows - 1);
+          var s = curCell(),
+            prev = bfsPrev(s.x, s.y);
+          /* gem-aware taps: a tap landing on or right beside a diamond always routes
+     the orb into that diamond's cell, so a slightly-off finger never leaves a
+     gem feeling unreachable */
+          var gSel = -1,
+            gBest = 0.72; /* (0.85 cells)^2 capture radius around a diamond */
+          for (var gi = 0; gi < gems.length; gi++) {
+            var gm = gems[gi];
+            if (gm.got) continue;
+            var gdx = wx - gm.x,
+              gdy = wy - gm.y,
+              gq = gdx * gdx + gdy * gdy;
+            if (gq < gBest) {
+              gBest = gq;
+              gSel = gi;
+            }
+          }
+          if (gSel >= 0) {
+            var gx2 = Math.floor(gems[gSel].x),
+              gy2 = Math.floor(gems[gSel].y),
+              gIdx = gy2 * cols + gx2;
+            if (grid[gIdx] === 0 && prev[gIdx] !== -1 && gIdx !== s.y * cols + s.x) {
+              setPathFromPrev(prev, s, gIdx);
+              bouncePlan = null;
+              tone(660, 0.06, "sine", 0.1);
+              haptic("light");
+              return;
+            }
+          }
+          var tv = grid[cy * cols + cx];
+          if (tv === 0 && prev[cy * cols + cx] !== -1) {
+            setPathFromPrev(prev, s, cy * cols + cx);
+            bouncePlan = null;
+            tone(660, 0.06, "sine", 0.1);
+            haptic("light");
+            return;
+          }
+          var best = -1,
+            bd = 1e9,
+            d,
+            nx,
+            ny,
+            ni,
+            dd,
+            ax,
+            ay;
+          for (d = 0; d < 4; d++) {
+            nx = cx + DIRS4[d][0];
+            ny = cy + DIRS4[d][1];
+            if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+            ni = ny * cols + nx;
+            if (grid[ni] !== 0 || prev[ni] === -1) continue;
+            ax = (ni % cols) + 0.5;
+            ay = Math.floor(ni / cols) + 0.5;
+            dd = (ax - wx) * (ax - wx) + (ay - wy) * (ay - wy);
+            if (dd < bd) {
+              bd = dd;
+              best = ni;
+            }
+          }
+          if (best < 0) {
+            for (ni = 0; ni < prev.length; ni++) {
+              if (prev[ni] === -1 || grid[ni] !== 0) continue;
+              ax = (ni % cols) + 0.5;
+              ay = Math.floor(ni / cols) + 0.5;
+              dd = (ax - wx) * (ax - wx) + (ay - wy) * (ay - wy);
+              if (dd < bd) {
+                bd = dd;
+                best = ni;
+              }
+            }
+          }
+          if (best < 0) return;
+          var arrX = (best % cols) + 0.5,
+            arrY = Math.floor(best / cols) + 0.5;
+          var bdx, bdy;
+          if (Math.abs(cx + 0.5 - arrX) + Math.abs(cy + 0.5 - arrY) < 1.5) {
+            bdx = cx + 0.5 - arrX;
+            bdy = cy + 0.5 - arrY;
+          } else {
+            bdx = wx - arrX;
+            bdy = wy - arrY;
+          }
+          setPathFromPrev(prev, s, best);
+          tone(660, 0.06, "sine", 0.1);
+          haptic("light");
+          if (path.length === 0) {
+            /* already at the closest spot: rebound right away */
+            startBounce(bdx, bdy, tv !== 0 ? 0.15 : 0.1, 0.34);
+            if (tv !== 0) bounceFx(player.x + bdx * 0.5, player.y + bdy * 0.5, -bdx, -bdy);
+            return;
+          }
+          bouncePlan = { dx: bdx, dy: bdy, amp: tv !== 0 ? 0.15 : 0.1, dur: 0.34, wall: tv !== 0 };
+        }
+        /* keyboard: arrow keys nudge the orb one cell at a time */
+        function nudge(dx, dy) {
+          if (state !== "playing" || !grid) return;
+          panning = false;
+          var s = curCell(),
+            nx = s.x + dx,
+            ny = s.y + dy;
+          if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) return;
+          if (grid[ny * cols + nx] === 0) {
+            path = [{ x: nx + 0.5, y: ny + 0.5 }];
+            pathIdx = 0;
+            bouncePlan = null;
+          } else {
+            startBounce(dx, dy, 0.13, 0.3);
+            bounceFx(s.x + 0.5 + dx * 0.5, s.y + 0.5 + dy * 0.5, -dx, -dy);
+          }
+        }
+        cv.addEventListener("pointerdown", function (e) {
+          ensureAudio();
+          if (state !== "playing") return;
+          tap.active = true;
+          tap.id = e.pointerId;
+          tap.sx = e.clientX;
+          tap.sy = e.clientY;
+          tap.dragged = false;
+          pan.active = true;
+          pan.id = e.pointerId;
+          pan.lx = e.clientX;
+          pan.ly = e.clientY;
+          try {
+            cv.setPointerCapture(e.pointerId);
+          } catch (err) {}
+        });
+        cv.addEventListener("pointermove", function (e) {
+          if (!tap.active || e.pointerId !== tap.id) return;
+          var dx = e.clientX - tap.sx,
+            dy = e.clientY - tap.sy;
+          if (dx * dx + dy * dy > TAP_TH * TAP_TH) tap.dragged = true;
+          /* drag to pan: the maze follows the finger so players can scout the maze */
+          if (tap.dragged && pan.active && pan.id === e.pointerId) {
+            camX -= e.clientX - pan.lx;
+            camY -= e.clientY - pan.ly;
+            pan.lx = e.clientX;
+            pan.ly = e.clientY;
+            panning = true;
+          }
+        });
+        function tapEnd(e) {
+          if (e.pointerId !== tap.id) return;
+          tap.active = false;
+          pan.active = false;
+          if (!tap.dragged) {
+            handleTap(e.clientX, e.clientY);
+            return;
+          }
+          /* released a pan: keep the free camera while the orb rests, ease back to
+     it as soon as it glides again */
+          if (path && pathIdx < path.length) panning = false;
+        }
+        cv.addEventListener("pointerup", tapEnd);
+        cv.addEventListener("pointercancel", function (e) {
+          if (e.pointerId !== tap.id) return;
+          tap.active = false;
+          pan.active = false;
+          if (path && pathIdx < path.length) panning = false;
+        });
+        window.addEventListener("keydown", function (e) {
+          ensureAudio();
+          var k = e.key.toLowerCase();
+          if (k.indexOf("arrow") === 0 || k === " ") e.preventDefault();
+          if (k === "p" || k === "escape") {
+            if (state === "playing" || state === "entering") pauseGame();
+            else if (state === "paused") resumeGame();
+            return;
+          }
+          if (state === "how") {
+            if (k === "arrowleft") {
+              setHowSlide(howIdx - 1);
+              return;
+            }
+            if (k === "arrowright") {
+              setHowSlide(howIdx + 1);
+              return;
+            }
+          }
+          if (state === "won" && (k === "enter" || k === " ")) {
+            if (levelIndex < LEVELS.length) startLevel(levelIndex + 1);
+            return;
+          }
+          if (k === "arrowleft" || k === "a") nudge(-1, 0);
+          else if (k === "arrowright" || k === "d") nudge(1, 0);
+          else if (k === "arrowup" || k === "w") nudge(0, -1);
+          else if (k === "arrowdown" || k === "s") nudge(0, 1);
+        });
+        document.addEventListener(
+          "touchmove",
+          function (e) {
+            if (e.target && (statsList.contains(e.target) || howOv.contains(e.target))) return;
+            e.preventDefault();
+          },
+          { passive: false },
+        );
+        document.addEventListener("gesturestart", function (e) {
+          e.preventDefault();
+        });
+        document.addEventListener("contextmenu", function (e) {
+          e.preventDefault();
+        });
+
+        /* menu / pause buttons */
+        pauseBtn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          pauseGame();
+        });
+        playBtn.addEventListener("click", function () {
+          haptic("light");
+          if (resumeData) {
+            startLevel(resumeData.level, resumeData);
+            return;
+          }
+          var li = 1;
+          if (cycleReset) {
+            li = clamp(sessionUnlocked, 1, LEVELS.length);
+          } else {
+            try {
+              if (sdk.isLevelBased && sdk.currentLevelIndex >= 1) li = sdk.currentLevelIndex;
+            } catch (err) {}
+          }
+          startLevel(li);
+        });
+        levelsBtn.addEventListener("click", function () {
+          haptic("light");
+          showLevels();
+        });
+        howBtn.addEventListener("click", function () {
+          haptic("light");
+          showHow();
+        });
+        levelsBack.addEventListener("click", function () {
+          haptic("light");
+          showMenu();
+        });
+        howBack.addEventListener("click", function () {
+          haptic("light");
+          showMenu();
+        });
+        resumeBtn.addEventListener("click", function () {
+          resumeGame();
+        });
+        restartBtn.addEventListener("click", function () {
+          haptic("light");
+          startLevel(levelIndex);
+        });
+        quitBtn.addEventListener("click", function () {
+          haptic("light");
+          showMenu();
+        });
+        statsPlay.addEventListener("click", function () {
+          haptic("light");
+          closeStats(true);
+        });
+        statsMenu.addEventListener("click", function () {
+          haptic("light");
+          closeStats(false);
+        });
+        /* desktop convenience: advance straight to the next level */
+        nextBtn.addEventListener("click", function () {
+          haptic("light");
+          hideNextBtn();
+          if (levelIndex < LEVELS.length) startLevel(levelIndex + 1);
+        });
+
+        /* ---------------- menu & pause ---------------- */
+        /* the Next Level button is a desktop/preview convenience: it only shows
+   when the host is not running level progression and thus provides no
+   end-of-stage UI of its own */
+        function hostLevels() {
+          try {
+            return !!sdk.isLevelBased;
+          } catch (e) {
+            return false;
+          }
+        }
+        function showNextBtn() {
+          if (hostLevels() || levelIndex >= LEVELS.length) return;
+          nextBtn.classList.add("show");
+        }
+        function hideNextBtn() {
+          nextBtn.classList.remove("show");
+        }
+        function hideOvs() {
+          hideNextBtn();
+          menuEl.classList.remove("show");
+          levelsOv.classList.remove("show");
+          howOv.classList.remove("show");
+          pauseOv.classList.remove("show");
+          statsOv.classList.remove("show");
+        }
+        function refreshProgress() {
+          try {
+            if (sdk.isLevelBased) {
+              highestUnlocked = Math.max(1, sdk.highestUnlockedLevel || 1);
+              starsMap = sdk.levelStars || {};
+            } else {
+              /* desktop/preview has no platform progression: start every session
+                 with only level 1 open so levels 2-10 show their lock icons */
+              highestUnlocked = 1;
+              starsMap = {};
+            }
+          } catch (err) {}
+          /* fresh cycle: the grid shows only this run's progress — level 1 open,
+     the rest locked with lock icons — and it stays that way for the whole
+     cycle, unlocking each level only as it is actually cleared */
+          if (cycleReset) {
+            highestUnlocked = 1;
+            starsMap = cycleStars;
+          }
+        }
+        /* the highest level the player can enter right now: platform progression on
+   mobile, plus whatever this session has opened on desktop/preview */
+        function effUnlocked() {
+          return Math.max(highestUnlocked, sessionUnlocked);
+        }
+        function showMenu() {
+          if (pendingStats) {
+            showStatsPage();
+            return;
+          }
+          state = "menu";
+          hideOvs();
+          hudEl.style.display = "none";
+          timerChip.style.display = "none";
+          pauseBtn.classList.remove("show");
+          refreshProgress();
+          var li = 1;
+          try {
+            if (sdk.isLevelBased && sdk.currentLevelIndex >= 1) li = sdk.currentLevelIndex;
+          } catch (err) {}
+          playBtn.textContent = resumeData ? "Resume: " + levelName(resumeData.level) : "Play";
+          menuEl.classList.add("show");
+        }
+        function showLevels() {
+          state = "levels";
+          hideOvs();
+          hudEl.style.display = "none";
+          timerChip.style.display = "none";
+          pauseBtn.classList.remove("show");
+          refreshProgress();
+          buildLevelGrid();
+          levelsOv.classList.add("show");
+        }
+        function showHow() {
+          state = "how";
+          hideOvs();
+          hudEl.style.display = "none";
+          timerChip.style.display = "none";
+          pauseBtn.classList.remove("show");
+          howOv.classList.add("show");
+          buildHowDots();
+          setHowSlide(0);
+          fitHowPanel();
+        }
+        /* ---------------- How to Play carousel ---------------- */
+        var howIdx = 0,
+          howCount = 0;
+        function buildHowDots() {
+          var secs = howList.querySelectorAll(".howSec");
+          howCount = secs.length;
+          howDots.innerHTML = "";
+          for (var i = 0; i < howCount; i++) {
+            var d = document.createElement("button");
+            d.className = "howDot";
+            (function (n) {
+              d.addEventListener("click", function () {
+                haptic("light");
+                setHowSlide(n);
+              });
+            })(i);
+            howDots.appendChild(d);
+          }
+        }
+        function setHowSlide(i) {
+          if (!howCount) buildHowDots();
+          howIdx = clamp(i, 0, howCount - 1);
+          howList.style.transform = "translateX(" + -howIdx * 100 + "%)";
+          var dots = howDots.children;
+          for (var k = 0; k < dots.length; k++) dots[k].classList.toggle("on", k === howIdx);
+          howPrev.disabled = howIdx <= 0;
+          howNext.disabled = howIdx >= howCount - 1;
+        }
+        howPrev.addEventListener("click", function () {
+          haptic("light");
+          setHowSlide(howIdx - 1);
+        });
+        howNext.addEventListener("click", function () {
+          haptic("light");
+          setHowSlide(howIdx + 1);
+        });
+        /* swipe the instruction card left/right to page through the slides */
+        var howSw = { on: false, id: -1, x0: 0, dx: 0 };
+        howViewport.addEventListener("pointerdown", function (e) {
+          howSw.on = true;
+          howSw.id = e.pointerId;
+          howSw.x0 = e.clientX;
+          howSw.dx = 0;
+        });
+        howViewport.addEventListener("pointermove", function (e) {
+          if (!howSw.on || e.pointerId !== howSw.id) return;
+          howSw.dx = e.clientX - howSw.x0;
+        });
+        function howSwEnd(e) {
+          if (!howSw.on || e.pointerId !== howSw.id) return;
+          howSw.on = false;
+          if (Math.abs(howSw.dx) > 40) {
+            haptic("light");
+            setHowSlide(howIdx + (howSw.dx < 0 ? 1 : -1));
+          }
+        }
+        howViewport.addEventListener("pointerup", howSwEnd);
+        howViewport.addEventListener("pointercancel", function (e) {
+          if (e.pointerId === howSw.id) howSw.on = false;
+        });
+        /* scale the How to Play card so its whole instruction list fits on one
+   page on any screen — no scrolling, portrait or desktop */
+        function fitHowPanel() {
+          var panel = howOv.querySelector(".panel");
+          if (!panel) return;
+          panel.style.transform = "scale(1)";
+          var avail = window.innerHeight - 24;
+          var h = panel.offsetHeight;
+          if (h > avail && h > 0) panel.style.transform = "scale(" + Math.max(0.45, avail / h) + ")";
+        }
+        function buildLevelGrid() {
+          lvlGrid.innerHTML = "";
+          var unlocked = effUnlocked();
+          for (var n = 1; n <= LEVELS.length; n++) {
+            var b = document.createElement("button");
+            var locked = n > unlocked;
+            b.className = "lvl" + (locked ? " locked" : "");
+            var st = starsMap[String(n)] || 0;
+            b.innerHTML = locked
+              ? '<img class="lockImg" alt="" draggable="false" src="' + LOCK_URL + '">'
+              : "<span>" + n + '</span><span class="st">' + starHtml(st) + "</span>";
+            (function (nn, lk) {
+              b.addEventListener("click", function () {
+                if (lk) {
+                  haptic("error");
+                  return;
+                }
+                haptic("light");
+                startLevel(nn);
+              });
+            })(n, locked);
+            lvlGrid.appendChild(b);
+          }
+        }
+        function pauseGame() {
+          if (state !== "playing" && state !== "entering") return;
+          pausedFrom = state;
+          state = "paused";
+          timerRunning = false;
+          panning = false;
+          pauseBtn.classList.remove("show");
+          pauseOv.classList.add("show");
+          if (pausedFrom === "playing") updateResume();
+          saveRunState();
+          haptic("light");
+        }
+        function resumeGame() {
+          if (state !== "paused") return;
+          state = pausedFrom || "playing";
+          pausedFrom = null;
+          pauseOv.classList.remove("show");
+          pauseBtn.classList.add("show");
+          haptic("light");
+        }
+
+        /* ---------------- run stats: time per level, reset after each full game ---------------- */
+        function fmtTime(s) {
+          if (s >= 60) {
+            var m = Math.floor(s / 60),
+              r = s - m * 60;
+            return m + "m " + (r < 10 ? "0" : "") + r.toFixed(1) + "s";
+          }
+          return s.toFixed(1) + "s";
+        }
+        function buildStats() {
+          statsList.innerHTML = "";
+          var total = 0,
+            any = false;
+          for (var n = 1; n <= LEVELS.length; n++) {
+            var t = runTimes[n],
+              st = runStars[n] || 0;
+            var row = document.createElement("div");
+            row.className = "statRow";
+            row.innerHTML =
+              "<span>Level " +
+              n +
+              " " +
+              starHtml(st) +
+              '</span><span class="t">' +
+              (t != null ? fmtTime(t) : "\u2014") +
+              "</span>";
+            if (t != null) {
+              total += t;
+              any = true;
+            }
+            statsList.appendChild(row);
+          }
+          statsTotal.innerHTML = '<span>Total</span><span class="t">' + (any ? fmtTime(total) : "\u2014") + "</span>";
+        }
+        function showStatsPage() {
+          if (!pendingStats || statsOv.classList.contains("show")) return;
+          buildStats();
+          state = "stats";
+          hideOvs();
+          hudEl.style.display = "none";
+          timerChip.style.display = "none";
+          pauseBtn.classList.remove("show");
+          statsOv.classList.add("show");
+          haptic("success");
+        }
+        function closeStats(play) {
+          runTimes = {};
+          runStars = {};
+          pendingStats = false;
+          if (play) {
+            /* New Run: a fresh cycle — level 1 open, levels 2-10 locked again.
+       Clearing the session unlocks and the seen-level marks puts the grid
+       back to its starting state instead of carrying the finished run's
+       progression over */
+            cycleReset = true;
+            cycleStars = {};
+            sessionUnlocked = 1;
+            seenLevels = {};
+            startLevel(1);
+            return;
+          }
+          saveRunState();
+          showMenu();
+        }
+        /* mid-run snapshot: lets the player leave and pick the level back up later */
+        function buildResume() {
+          if (state !== "playing" && state !== "paused") return null;
+          var got = [];
+          for (var i = 0; i < gems.length; i++) got.push(gems[i].got ? 1 : 0);
+          return {
+            level: levelIndex,
+            px: player.x,
+            py: player.y,
+            dirX: dirX,
+            dirY: dirY,
+            got: got,
+            gems: gemCount,
+            elapsed: elapsed,
+            score: score,
+            rev: revealStr(),
+          };
+        }
+        function updateResume() {
+          resumeData = buildResume();
+        }
+        function saveRunState() {
+          try {
+            window.RemixSDK.singlePlayer.actions.saveGameState({
+              gameState: {
+                runTimes: runTimes,
+                runStars: runStars,
+                runDone: pendingStats,
+                resume: resumeData,
+                score: score,
+                cycleReset: cycleReset,
+                cycleStars: cycleStars,
+                sessionUnlocked: sessionUnlocked,
+                seenLevels: seenLevels,
+              },
+            });
+          } catch (e) {}
+        }
+        function onLeave() {
+          if (state === "playing" || state === "paused") updateResume();
+          saveRunState();
+        }
+        document.addEventListener("visibilitychange", function () {
+          if (document.visibilityState === "hidden") onLeave();
+        });
+        window.addEventListener("pagehide", onLeave);
+        function handlePlay(li) {
+          if (pendingStats) {
+            showStatsPage();
+            return;
+          }
+          if (!li) {
+            if (cycleReset) {
+              li = clamp(sessionUnlocked, 1, LEVELS.length);
+            } else {
+              try {
+                li = window.RemixSDK.currentLevelIndex || 1;
+              } catch (e) {
+                li = 1;
+              }
+            }
+          }
+          if (resumeData && resumeData.level === li) {
+            startLevel(li, resumeData);
+            return;
+          }
+          startLevel(li);
+        }
+
+        /* ---------------- game flow ---------------- */
+        function startLevel(i, res) {
+          levelIndex = clamp(Math.round(i) || 1, 1, LEVELS.length);
+          var L = LEVELS[levelIndex - 1];
+          cols = L.cols;
+          rows = L.rows;
+          totalGems = L.gems;
+          var rnd = mulberry32(levelIndex * 7919 + 4242);
+          var spec = LEVEL_LAYOUTS[levelIndex - 1];
+          openPassages.length = 0;
+          grid = spec ? buildFixedMaze(cols, rows, spec) : genMaze(cols, rows, rnd);
+          placeExit(rnd);
+          placeGems(rnd);
+          placeShields(rnd);
+          placeUrchins(rnd);
+          genDecor();
+          revealed = new Uint8Array(cols * rows);
+          revStamp = new Int32Array(cols * rows);
+          revGen = 0;
+          player = { x: 1.5, y: 1.5 };
+          dirX = 0;
+          dirY = 1;
+          trail.length = 0;
+          particles.length = 0;
+          gemCount = 0;
+          allGemsDone = false;
+          elapsed = 0;
+          lastClock = "";
+          timerRunning = false;
+          reported = false;
+          chain = 0;
+          lastGemT = -9;
+          popups.length = 0;
+          score = 0;
+          shakeT = 0;
+          flashT = 0;
+          enterT = 0;
+          orbHidden = false;
+          spawnAccum = 0;
+          shieldT = 0;
+          shieldOutT = 0;
+          var resumed = false;
+          if (res && res.level === levelIndex) {
+            resumed = true;
+            player.x = clamp(typeof res.px === "number" ? res.px : 1.5, 1 + R, cols - 1 - R);
+            player.y = clamp(typeof res.py === "number" ? res.py : 1.5, 1 + R, rows - 1 - R);
+            if (typeof res.dirX === "number" && typeof res.dirY === "number") {
+              dirX = res.dirX;
+              dirY = res.dirY;
+            }
+            if (res.got && res.got.length === gems.length) {
+              for (var gi2 = 0; gi2 < gems.length; gi2++) {
+                if (res.got[gi2]) {
+                  gems[gi2].got = true;
+                  gemCount++;
+                }
+              }
+            }
+            elapsed = clamp(Number(res.elapsed) || 0, 0, 3600);
+            if (typeof res.score === "number") score = res.score;
+            if (typeof res.rev === "string" && res.rev.length === cols * rows) {
+              for (var rv = 0; rv < res.rev.length; rv++) revealed[rv] = res.rev.charCodeAt(rv) === 49 ? 1 : 0;
+            }
+          }
+          revealAround();
+          path = null;
+          pathIdx = 0;
+          bounce = null;
+          bouncePlan = null;
+          panning = false;
+          state = "playing";
+          hideOvs();
+          hudEl.style.display = "flex";
+          timerChip.style.display = "flex";
+          pauseBtn.classList.add("show");
+          layout();
+          camX = player.x * cs;
+          camY = player.y * cs;
+          levelChip.textContent = "Level " + levelIndex + "/" + LEVELS.length;
+          updateGemHud();
+          updateScoreHud();
+          /* a level the player has never entered is brand new: announce it with
+     the "New Level Unlocked!" banner */
+          var isNew = !resumed && levelIndex > 1 && !seenLevels[levelIndex];
+          if (isNew) haptic("success");
+          /* organized instruction rows: one chip per instruction with How to
+     Play-sized icons, shown on every level start */
+          var rows = "";
+          if (resumed) {
+            rows +=
+              '<div class="bRow">Resumed \u2014 ' +
+              gemCount +
+              " of " +
+              totalGems +
+              " " +
+              bIco("gem", GEM_URL) +
+              " collected</div>";
+          } else if (levelIndex === 1) {
+            /* instructions only on level 1 so they don't repeat every level */
+            rows += '<div class="bRow">Collect all ' + totalGems + " " + bIco("gem", GEM_URL) + " for bonus pts</div>";
+            rows += '<div class="bRow">Spiky urchins patrol \u2014 time your sends</div>';
+            rows += '<div class="bRow">Drag to look around the maze</div>';
+          }
+          if (isNew) {
+            showBanner(
+              "New Level Unlocked!",
+              '<div class="bRows"><div class="bRow">' + levelName(levelIndex) + "</div>" + rows + "</div>",
+              2400,
+              "portalPop",
+            );
+          } else {
+            showBanner(levelName(levelIndex), '<div class="bRows">' + rows + "</div>", levelIndex === 1 ? 2200 : 1800);
+          }
+          updateResume();
+          saveRunState();
+        }
+        /* collision feedback: sparks spray off the wall at the point of contact */
+        var lastSparkT = -1;
+        function sparkBurst(x, y, nx, ny, spd) {
+          if (!(spd > 2.2)) return; /* ignore gentle nudges */
+          if (animT - lastSparkT < 0.15) return; /* throttle while grinding along a wall */
+          lastSparkT = animT;
+          var n = 3 + Math.floor(Math.random() * 3);
+          for (var i = 0; i < n; i++) {
+            var a = Math.random() * 6.283,
+              v = 2.8 + Math.random() * 3.4;
+            var pvx = Math.cos(a) * v,
+              pvy = Math.sin(a) * v;
+            if (pvx * nx + pvy * ny < 0) {
+              pvx = -pvx;
+              pvy = -pvy;
+            } /* fly away from the wall */
+            particles.push({
+              x: x,
+              y: y,
+              vx: pvx,
+              vy: pvy,
+              life: 0.12 + Math.random() * 0.13,
+              max: 0.25,
+              color: SPARK_COLORS[i % SPARK_COLORS.length],
+              r: 0.03 + Math.random() * 0.035,
+            });
+          }
+        }
+
+        /* gem burst: a layered pop — expanding shockwave ring, white core flash,
+   cyan/aqua shards that spawn enlarged and shrink (pop scale), and fine
+   glitter streaks spraying outward */
+        function burst(x, y, n, colors) {
+          var cols2 = colors || GEM_COLORS;
+          var i, a, sp;
+          /* shockwave ring: expands fast, thins as it fades */
+          particles.push({
+            x: x,
+            y: y,
+            vx: 0,
+            vy: 0,
+            life: 0.32,
+            max: 0.32,
+            color: cols2[0],
+            r: 0.12,
+            ring: true,
+            grow: 3.4,
+            grav: 0,
+          });
+          /* core flash: one bright pop that shrinks away */
+          particles.push({
+            x: x,
+            y: y,
+            vx: 0,
+            vy: 0,
+            life: 0.16,
+            max: 0.16,
+            color: "#ffffff",
+            r: 0.18,
+            pop: 1.5,
+            grav: 0,
+          });
+          /* main shards: gem-colored, pop big then settle to base size */
+          for (i = 0; i < n; i++) {
+            a = Math.random() * 6.283;
+            sp = 0.8 + Math.random() * 2.4;
+            particles.push({
+              x: x,
+              y: y,
+              vx: Math.cos(a) * sp,
+              vy: Math.sin(a) * sp - 1.2,
+              life: 0.45 + Math.random() * 0.4,
+              max: 0.85,
+              color: cols2[i % cols2.length],
+              r: 0.05 + Math.random() * 0.08,
+              pop: 1.4 + Math.random() * 0.8,
+            });
+          }
+          /* fine glitter: fast tiny sparks that streak along their velocity */
+          var ng = Math.round(n * 0.8);
+          for (i = 0; i < ng; i++) {
+            a = Math.random() * 6.283;
+            sp = 2.6 + Math.random() * 3.2;
+            particles.push({
+              x: x,
+              y: y,
+              vx: Math.cos(a) * sp,
+              vy: Math.sin(a) * sp,
+              life: 0.2 + Math.random() * 0.2,
+              max: 0.4,
+              color: i % 2 ? "#ffffff" : "#bffcff",
+              r: 0.025 + Math.random() * 0.03,
+              pop: 0.8,
+              streak: true,
+            });
+          }
+        }
+        /* urchin burst: a small pop when a shielded orb destroys an urchin —
+   a quick shockwave ring plus a spray of spikes flying outward */
+        function urchinBurst(x, y) {
+          /* shockwave ring: expands fast and thins as it fades */
+          particles.push({
+            x: x,
+            y: y,
+            vx: 0,
+            vy: 0,
+            life: 0.3,
+            max: 0.3,
+            color: "#ff8296",
+            r: 0.1,
+            ring: true,
+            grow: 3.0,
+            grav: 0,
+          });
+          /* core flash: one bright pop that shrinks away */
+          particles.push({
+            x: x,
+            y: y,
+            vx: 0,
+            vy: 0,
+            life: 0.14,
+            max: 0.14,
+            color: "#ffffff",
+            r: 0.16,
+            pop: 1.6,
+            grav: 0,
+          });
+          /* spikes flying outward, spawned enlarged and shrinking (pop scale) */
+          var n = 12;
+          for (var i = 0; i < n; i++) {
+            var a = (i / n) * 6.283 + Math.random() * 0.3;
+            var sp = 1.6 + Math.random() * 1.9;
+            particles.push({
+              x: x,
+              y: y,
+              vx: Math.cos(a) * sp,
+              vy: Math.sin(a) * sp,
+              life: 0.3 + Math.random() * 0.22,
+              max: 0.52,
+              color: i % 3 === 0 ? "#ffffff" : "#ff6b8a",
+              r: 0.045 + Math.random() * 0.035,
+              pop: 1.3,
+              streak: true,
+            });
+          }
+          /* fine glitter: fast tiny sparks streaking along their velocity */
+          for (var g = 0; g < 6; g++) {
+            var ga = Math.random() * 6.283,
+              gs = 2.6 + Math.random() * 2.6;
+            particles.push({
+              x: x,
+              y: y,
+              vx: Math.cos(ga) * gs,
+              vy: Math.sin(ga) * gs,
+              life: 0.18 + Math.random() * 0.16,
+              max: 0.34,
+              color: g % 2 ? "#ffffff" : "#ffb3c4",
+              r: 0.022 + Math.random() * 0.025,
+              pop: 0.8,
+              streak: true,
+            });
+          }
+        }
+        /* stars go by speed: finish with half the glide-time budget left for 3,
+   a quarter left for 2 — diamonds add score, not stars */
+        function starCount() {
+          var par = (LEVELS[levelIndex - 1] && LEVELS[levelIndex - 1].time) || 60;
+          if (elapsed <= par * 0.5) return 3;
+          if (elapsed <= par * 0.75) return 2;
+          return 1;
+        }
+        /* portal entry: the orb gets caught by the portal and spirals into its
+   center, shrinking and fading, before the level-clear flow fires */
+        function winLevel() {
+          if (state !== "playing") return;
+          state = "entering";
+          timerRunning = false;
+          path = null;
+          bounce = null;
+          bouncePlan = null;
+          panning = false;
+          enterT = 0;
+          spawnAccum = 0;
+          var ddx = player.x - exitC.x,
+            ddy = player.y - exitC.y;
+          enterA0 = Math.atan2(ddy, ddx);
+          enterR0 = Math.max(Math.sqrt(ddx * ddx + ddy * ddy), 0.18);
+          burst(exitC.x, exitC.y, 10, ["#7dffb0", "#6ff7ff", "#d2ffe9", "#ffffff"]);
+          playPortalSfx();
+          haptic("medium");
+        }
+        /* timer out: the level fails — the platform shows the retry flow */
+        function failLevel() {
+          if (state !== "playing") return;
+          state = "failed";
+          timerRunning = false;
+          path = null;
+          bounce = null;
+          bouncePlan = null;
+          panning = false;
+          pauseBtn.classList.remove("show");
+          shakeT = shakeDur;
+          flashT = FLASH_DUR;
+          burst(player.x, player.y, 12, ["#ff5a7e", "#ff8296", "#ffd166", "#ffffff"]);
+          sfx.zap();
+          haptic("error");
+          resumeData = null;
+          saveRunState();
+          showBanner(
+            '<img class="tIco" alt="" draggable="false" src="' + WATCH_URL + '">Time\u2019s Up!',
+            "The clock hit 00:00",
+            2200,
+          );
+          report(0);
+        }
+        function finishWin() {
+          state = "won";
+          orbHidden = true;
+          pauseBtn.classList.remove("show");
+          var st = starCount();
+          runTimes[levelIndex] = Math.round(elapsed * 10) / 10;
+          runStars[levelIndex] = st;
+          /* completing the level marks it as seen so it no longer announces as new */
+          seenLevels[levelIndex] = 1;
+          /* clear bonus: flat 250 plus 10 pts per second under the level's par time */
+          var par = (LEVELS[levelIndex - 1] && LEVELS[levelIndex - 1].time) || 60;
+          var clearBonus = 250 + Math.max(0, Math.round((par - elapsed) * 10));
+          score += clearBonus;
+          updateScoreHud();
+          var finished = levelIndex >= LEVELS.length;
+          /* during a fresh cycle the grid only shows what this run has cleared */
+          if (cycleReset) cycleStars[levelIndex] = st;
+          if (finished) {
+            pendingStats = true;
+            /* beat the last level: the whole grid locks back up for a fresh cycle */
+            cycleReset = true;
+            cycleStars = {};
+            sessionUnlocked = 1;
+            seenLevels = {};
+          } else {
+            /* clearing a level opens the next one for this session, so desktop
+       play (no platform progression) unlocks the way mobile does */
+            sessionUnlocked = Math.max(sessionUnlocked, levelIndex + 1);
+          }
+          resumeData = null;
+          saveRunState();
+          sfx.win();
+          haptic("success");
+          burst(exitC.x, exitC.y, 30, ["#6ff7ff", "#7dffb0", "#ffd166", "#ff7ad9", "#ffffff"]);
+          showBanner("Portal Reached!", "+" + fmtScore(clearBonus) + " pts", 1800, "portalPop");
+          report(st);
+          /* desktop/preview has no host end-of-stage screen, so offer a Next
+     Level button once the win banner has had its moment */
+          if (!finished) setTimeout(showNextBtn, 1500);
+          /* the host's end-of-stage screen owns the moment right after the report
+     fires, so hold the stats popup back until it has had its turn — otherwise
+     the banner, the host screen and the stats page all stack in ~2 seconds */
+          if (finished) {
+            setTimeout(showStatsPage, 5200);
+          }
+        }
+        function report(st) {
+          if (reported) return;
+          reported = true;
+          var li = levelIndex,
+            st2 = st;
+          setTimeout(function () {
+            try {
+              if (sdk.isLevelBased) {
+                window.RemixSDK.singlePlayer.actions.gameOver({
+                  score: 0,
+                  levelAttempt: { levelIndex: li, stars: st2 },
+                });
+              } else {
+                window.RemixSDK.singlePlayer.actions.gameOver({ score: li * 100 + gemCount * 25 + st2 * 50 });
+              }
+            } catch (e) {}
+          }, 2000);
+        }
+        function showBanner(title, sub, ms, cls) {
+          bannerTitle.className = "";
+          bannerTitle.innerHTML = title;
+          bannerSub.innerHTML = sub;
+          banner.style.animationDuration = ms + "ms";
+          banner.classList.remove("show");
+          void banner.offsetWidth;
+          if (cls) {
+            bannerTitle.className = cls;
+            void bannerTitle.offsetWidth;
+          }
+          banner.classList.add("show");
+        }
+        function updateGemHud() {
+          gemCountTxt.textContent = gemCount + "/" + totalGems;
+        }
+        function fmtScore(n) {
+          try {
+            return n.toLocaleString("en-US");
+          } catch (e) {
+            return "" + n;
+          }
+        }
+        function updateScoreHud() {
+          scoreTxt.textContent = fmtScore(score) + " pts";
+        }
+        function bumpScore() {
+          scoreChip.classList.remove("bump");
+          void scoreChip.offsetWidth;
+          scoreChip.classList.add("bump");
+        }
+        function addPopup(x, y, txt, col) {
+          popups.push({ x: x, y: y, txt: txt, c: col || "#8ff7ff", life: 0.9, max: 0.9 });
+        }
+        function drawPopups() {
+          for (var i = 0; i < popups.length; i++) {
+            var p = popups[i];
+            ctx.globalAlpha = clamp(p.life / p.max, 0, 1);
+            ctx.fillStyle = p.c;
+            ctx.font = "800 " + Math.max(12, cs * 0.42) + "px Cabin,Damion,system-ui,sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText(p.txt, mx + p.x * cs, my + p.y * cs);
+          }
+          ctx.globalAlpha = 1;
+          ctx.textAlign = "left";
+        }
+        function fmtClock(s) {
+          var m = Math.floor(s / 60),
+            sec = Math.floor(s - m * 60);
+          return (m < 10 ? "0" : "") + m + ":" + (sec < 10 ? "0" : "") + sec;
+        }
+        /* countdown: shows the glide-time budget remaining; goes red under 10s */
+        function updateTimerHud() {
+          var L = LEVELS[levelIndex - 1];
+          var left = Math.max(0, (L ? L.time : 60) - elapsed);
+          var str = fmtClock(left);
+          if (str !== lastClock) {
+            lastClock = str;
+            timerTxt.textContent = str;
+          }
+          timerChip.classList.toggle("low", left <= 10 && state !== "menu");
+        }
+        /* the timer chip dims while the orb is stopped and lights up while gliding */
+        var lastTimerDim = null;
+        function updateTimerDim() {
+          var dim = !timerRunning;
+          if (dim === lastTimerDim) return;
+          lastTimerDim = dim;
+          timerChip.classList.toggle("dim", dim);
+        }
+
+        /* the shield chip appears only while the power-up is running */
+        function updateShieldHud() {
+          if (shieldT > 0) {
+            shieldChip.classList.add("show");
+            var s = Math.ceil(shieldT);
+            var low = shieldT <= 3;
+            var str = s + "s";
+            if (shieldTxt.textContent !== str) shieldTxt.textContent = str;
+            shieldChip.classList.toggle("low", low);
+          } else if (shieldOutT > 0) {
+            /* the countdown lands on 0 and lingers a beat before the chip fades */
+            shieldChip.classList.add("show");
+            if (shieldTxt.textContent !== "0s") shieldTxt.textContent = "0s";
+            shieldChip.classList.add("low");
+          } else {
+            shieldChip.classList.remove("show");
+            shieldChip.classList.remove("low");
+          }
+        }
+
+        /* ---------------- main-menu scene: abyss + rays + aurora + nebula + seaweed ---------------- */
+        var menuFxDirty = false;
+        var motes = [],
+          mbub = [],
+          weeds = [],
+          nebs = [],
+          ribCfg = [];
+        function sizeMenuFx() {
+          menuFx.width = Math.max(1, Math.round(W * DPR));
+          menuFx.height = Math.max(1, Math.round(H * DPR));
+          mfCtx.setTransform(DPR, 0, 0, DPR, 0, 0);
+          initMenuScene();
+        }
+        function initMenuScene() {
+          motes.length = 0;
+          mbub.length = 0;
+          weeds.length = 0;
+          nebs.length = 0;
+          ribCfg.length = 0;
+          var i,
+            n = Math.min(70, Math.round((W * H) / 16000));
+          for (i = 0; i < n; i++)
+            motes.push({
+              x: Math.random() * W,
+              y: Math.random() * H,
+              r: 0.5 + Math.random() * 1.4,
+              ph: Math.random() * 6.28,
+              sp: 0.4 + Math.random() * 1.4,
+              dv: 3 + Math.random() * 12,
+            });
+          var nb = Math.max(5, Math.round(W / 55));
+          for (i = 0; i < nb; i++)
+            mbub.push({
+              x: Math.random() * W,
+              r: 1.2 + Math.random() * 2.8,
+              spd: 12 + Math.random() * 26,
+              ph: Math.random() * 6.28,
+              wob: 6 + Math.random() * 16,
+              off: Math.random() * H,
+            });
+          /* swaying seaweed along the abyss floor */
+          var nw = Math.max(8, Math.round(W / 48));
+          for (i = 0; i < nw; i++)
+            weeds.push({
+              x: (W * (i + 0.5)) / nw + (Math.random() - 0.5) * W * 0.05,
+              h: H * (0.1 + Math.random() * 0.22),
+              w: 2.5 + Math.random() * 3.5,
+              seg: 5 + Math.floor(Math.random() * 4),
+              hue: Math.random(),
+              ph: Math.random() * 6.28,
+              sw: 0.5 + Math.random() * 0.7,
+            });
+          var ncol = [
+            [138, 110, 255],
+            [94, 242, 255],
+            [255, 122, 217],
+            [110, 255, 190],
+          ];
+          for (i = 0; i < 4; i++)
+            nebs.push({
+              bx: 0.15 + 0.7 * Math.random(),
+              by: 0.12 + 0.55 * Math.random(),
+              br: 0.32 + 0.28 * Math.random(),
+              c: ncol[i],
+              ph: Math.random() * 6.28,
+              sp: 0.05 + Math.random() * 0.08,
+            });
+          /* aurora curtain colours: oxygen green, violet, and a pink fringe */
+          var auroraCols = ["rgba(90,255,170,", "rgba(150,120,255,", "rgba(255,130,200,"];
+          for (i = 0; i < 3; i++)
+            ribCfg.push({
+              y: 0.14 + 0.16 * i,
+              amp: H * (0.03 + 0.022 * Math.random()),
+              f: 1.2 + Math.random() * 1.4,
+              sp: 0.18 + 0.16 * Math.random(),
+              ph: Math.random() * 6.28,
+              lw: H * (0.05 + 0.03 * Math.random()),
+              c: auroraCols[i],
+            });
+        }
+
+        function updateMenuFx(dt) {
+          if (!menuEl.classList.contains("show")) {
+            if (menuFxDirty) {
+              mfCtx.clearRect(0, 0, W, H);
+              menuFxDirty = false;
+            }
+            return;
+          }
+          drawMenuFx();
+          menuFxDirty = true;
+        }
+        function drawMenuFx() {
+          var t = animT;
+          mfCtx.clearRect(0, 0, W, H);
+          /* deep water gradient */
+          var g = mfCtx.createLinearGradient(0, 0, 0, H);
+          g.addColorStop(0, "#0b3a55");
+          g.addColorStop(0.45, "#0d1c4e");
+          g.addColorStop(1, "#04030f");
+          mfCtx.fillStyle = g;
+          mfCtx.fillRect(0, 0, W, H);
+          mfCtx.globalCompositeOperation = "lighter";
+          /* nebula clouds */
+          for (var nI = 0; nI < nebs.length; nI++) {
+            var ne = nebs[nI];
+            var nx = W * (ne.bx + 0.06 * Math.sin(t * ne.sp + ne.ph));
+            var ny = H * (ne.by + 0.05 * Math.cos(t * ne.sp * 0.8 + ne.ph));
+            var nbr = Math.max(W, H) * ne.br;
+            var na = 0.1 + 0.05 * Math.sin(t * 0.3 + ne.ph * 2);
+            var ng = mfCtx.createRadialGradient(nx, ny, 0, nx, ny, nbr);
+            ng.addColorStop(0, "rgba(" + ne.c[0] + "," + ne.c[1] + "," + ne.c[2] + "," + na.toFixed(3) + ")");
+            ng.addColorStop(1, "rgba(" + ne.c[0] + "," + ne.c[1] + "," + ne.c[2] + ",0)");
+            mfCtx.fillStyle = ng;
+            mfCtx.fillRect(
+              Math.max(0, nx - nbr),
+              Math.max(0, ny - nbr),
+              Math.min(W, nx + nbr) - Math.max(0, nx - nbr),
+              Math.min(H, ny + nbr) - Math.max(0, ny - nbr),
+            );
+          }
+          /* aurora curtains: soft vertical light shafts hanging from a wavy
+     baseline, brightest along the lower edge and fading upward, with
+     drifting vertical striations so they read as real aurora rather than
+     flat ribbons */
+          mfCtx.lineCap = "butt";
+          for (var r2 = 0; r2 < ribCfg.length; r2++) {
+            var rb = ribCfg[r2];
+            var baseY = H * rb.y;
+            var steps = 30;
+            var curH = rb.lw * 3.4;
+            var bx = [],
+              by = [];
+            for (var sgi = 0; sgi <= steps; sgi++) {
+              var xx = (W * sgi) / steps;
+              var yy =
+                baseY +
+                Math.sin((xx / W) * rb.f * 6.283 + t * rb.sp + rb.ph) * rb.amp +
+                Math.sin((xx / W) * rb.f * 3.1 - t * rb.sp * 0.7 + rb.ph * 2) * rb.amp * 0.6;
+              bx.push(xx);
+              by.push(yy);
+            }
+            var topY = baseY - rb.amp - curH,
+              botY = baseY + rb.amp;
+            /* curtain body: transparent at the top, brightest just above the
+       lower edge, then easing off below it */
+            var ag = mfCtx.createLinearGradient(0, topY, 0, botY);
+            ag.addColorStop(0, rb.c + "0)");
+            ag.addColorStop(0.5, rb.c + "0.05)");
+            ag.addColorStop(0.85, rb.c + "0.22)");
+            ag.addColorStop(1, rb.c + "0.12)");
+            mfCtx.fillStyle = ag;
+            mfCtx.beginPath();
+            mfCtx.moveTo(bx[0], by[0]);
+            for (var sgi2 = 1; sgi2 <= steps; sgi2++) mfCtx.lineTo(bx[sgi2], by[sgi2]);
+            for (var sgi3 = steps; sgi3 >= 0; sgi3--) mfCtx.lineTo(bx[sgi3], by[sgi3] - curH);
+            mfCtx.closePath();
+            mfCtx.fill();
+            /* vertical striations: thin shafts of varying brightness that
+       drift sideways, giving the curtain its ribbed texture */
+            var rg = mfCtx.createLinearGradient(0, topY, 0, botY);
+            rg.addColorStop(0, rb.c + "0)");
+            rg.addColorStop(0.7, rb.c + "0.05)");
+            rg.addColorStop(1, rb.c + "0.15)");
+            mfCtx.strokeStyle = rg;
+            mfCtx.lineWidth = Math.max(1, (W / steps) * 0.42);
+            for (var sgi4 = 0; sgi4 <= steps; sgi4++) {
+              var ray = 0.5 + 0.5 * Math.sin(sgi4 * 1.9 + rb.ph * 3 + t * 0.5);
+              mfCtx.globalAlpha = 0.35 + 0.65 * ray;
+              mfCtx.beginPath();
+              mfCtx.moveTo(bx[sgi4], by[sgi4] - curH);
+              mfCtx.lineTo(bx[sgi4], by[sgi4]);
+              mfCtx.stroke();
+            }
+            mfCtx.globalAlpha = 1;
+            /* bright lower hem: the sharp luminous edge real auroras show */
+            mfCtx.strokeStyle = rb.c + "0.3)";
+            mfCtx.lineWidth = Math.max(1.5, H * 0.004);
+            mfCtx.beginPath();
+            mfCtx.moveTo(bx[0], by[0]);
+            for (var sgi5 = 1; sgi5 <= steps; sgi5++) mfCtx.lineTo(bx[sgi5], by[sgi5]);
+            mfCtx.stroke();
+          }
+          mfCtx.globalCompositeOperation = "source-over";
+          /* swaying seaweed rising from the abyss floor */
+          mfCtx.lineCap = "round";
+          for (var wI = 0; wI < weeds.length; wI++) {
+            var wd = weeds[wI];
+            var sway = Math.sin(t * wd.sw + wd.ph) * 0.5 + Math.sin(t * wd.sw * 0.63 + wd.ph * 2.1) * 0.3;
+            var segs = wd.seg,
+              sh = wd.h / segs;
+            var wcol = wd.hue < 0.5 ? "52,199,122" : "32,178,170";
+            var wpts = [{ x: wd.x, y: H + 6 }],
+              wcx = wd.x,
+              wcy = H + 6;
+            for (var wsi = 1; wsi <= segs; wsi++) {
+              var wf = wsi / segs;
+              wcx += sway * wf * wf * sh * 0.55;
+              wcy -= sh;
+              wpts.push({ x: wcx, y: wcy });
+            }
+            for (var wsi2 = 0; wsi2 < segs; wsi2++) {
+              mfCtx.strokeStyle = "rgba(" + wcol + ",0.5)";
+              mfCtx.lineWidth = Math.max(1.5, wd.w * (1 - (wsi2 / segs) * 0.7));
+              mfCtx.beginPath();
+              mfCtx.moveTo(wpts[wsi2].x, wpts[wsi2].y);
+              mfCtx.lineTo(wpts[wsi2 + 1].x, wpts[wsi2 + 1].y);
+              mfCtx.stroke();
+            }
+            mfCtx.fillStyle = "rgba(" + wcol + ",0.38)";
+            for (var wli = 1; wli < segs; wli++) {
+              var wlp = wpts[wli],
+                wside = wli % 2 ? 1 : -1,
+                wlf = 1 - wli / segs;
+              mfCtx.beginPath();
+              mfCtx.ellipse(
+                wlp.x + wside * wd.w * 1.7,
+                wlp.y - sh * 0.25,
+                wd.w * 2 * wlf + 2,
+                wd.w * 0.6,
+                wside * 0.7,
+                0,
+                6.283,
+              );
+              mfCtx.fill();
+            }
+            var wtp = wpts[segs];
+            var wtg = mfCtx.createRadialGradient(wtp.x, wtp.y, 0, wtp.x, wtp.y, wd.w * 3.2);
+            wtg.addColorStop(0, "rgba(" + wcol + ",0.22)");
+            wtg.addColorStop(1, "rgba(" + wcol + ",0)");
+            mfCtx.fillStyle = wtg;
+            mfCtx.fillRect(wtp.x - wd.w * 3.2, wtp.y - wd.w * 3.2, wd.w * 6.4, wd.w * 6.4);
+          }
+          /* drifting motes */
+          mfCtx.fillStyle = "#bfe9ff";
+          for (var mI = 0; mI < motes.length; mI++) {
+            var mo = motes[mI];
+            var myy = (mo.y + t * mo.dv) % H;
+            var mxx = mo.x + Math.sin(t * mo.sp + mo.ph) * 8;
+            mfCtx.globalAlpha = 0.1 + 0.24 * (0.5 + 0.5 * Math.sin(t * mo.sp + mo.ph));
+            mfCtx.beginPath();
+            mfCtx.arc(mxx, myy, mo.r, 0, 6.283);
+            mfCtx.fill();
+          }
+          /* rising bubbles */
+          mfCtx.globalAlpha = 0.18;
+          mfCtx.strokeStyle = "rgba(210,240,255,0.6)";
+          mfCtx.lineWidth = 1;
+          for (var bI = 0; bI < mbub.length; bI++) {
+            var bu = mbub[bI];
+            var byy = H + 30 - ((t * bu.spd + bu.off) % (H + 60));
+            var bxx = bu.x + Math.sin(t * 1.1 + bu.ph) * bu.wob;
+            mfCtx.beginPath();
+            mfCtx.arc(bxx, byy, bu.r, 0, 6.283);
+            mfCtx.stroke();
+          }
+          mfCtx.globalAlpha = 1;
+          /* vignette */
+          var v = mfCtx.createRadialGradient(
+            W * 0.5,
+            H * 0.42,
+            Math.min(W, H) * 0.35,
+            W * 0.5,
+            H * 0.55,
+            Math.max(W, H) * 0.78,
+          );
+          v.addColorStop(0, "rgba(0,0,0,0)");
+          v.addColorStop(1, "rgba(2,2,10,0.55)");
+          mfCtx.fillStyle = v;
+          mfCtx.fillRect(0, 0, W, H);
+        }
+
+        function update(dt) {
+          if (shakeT > 0) shakeT = Math.max(0, shakeT - dt);
+          if (flashT > 0) flashT = Math.max(0, flashT - dt);
+          var moved = false;
+          if (state === "playing") {
+            /* tap-to-move: the orb follows its path one waypoint at a time */
+            if (bounce) {
+              bounce.t += dt;
+              if (bounce.t >= bounce.dur) bounce = null;
+            }
+            if (path && pathIdx < path.length) {
+              var budget = SPEED * dt;
+              while (budget > 1e-6 && pathIdx < path.length) {
+                var wp = path[pathIdx];
+                var dx = wp.x - player.x,
+                  dy = wp.y - player.y;
+                var d = Math.sqrt(dx * dx + dy * dy);
+                if (d <= budget || d < 1e-6) {
+                  if (d >= 1e-6) {
+                    dirX = dx / d;
+                    dirY = dy / d;
+                  }
+                  player.x = wp.x;
+                  player.y = wp.y;
+                  budget -= d;
+                  pathIdx++;
+                  moved = true;
+                } else {
+                  player.x += (dx / d) * budget;
+                  player.y += (dy / d) * budget;
+                  dirX = dx / d;
+                  dirY = dy / d;
+                  budget = 0;
+                  moved = true;
+                }
+              }
+              if (pathIdx >= path.length) {
+                path = null;
+                /* arrival: planned rebound off a wall/laser, or a soft settle */
+                if (bouncePlan) {
+                  startBounce(bouncePlan.dx, bouncePlan.dy, bouncePlan.amp, bouncePlan.dur);
+                  if (bouncePlan.wall)
+                    bounceFx(
+                      player.x + bouncePlan.dx * 0.5,
+                      player.y + bouncePlan.dy * 0.5,
+                      -bouncePlan.dx,
+                      -bouncePlan.dy,
+                    );
+                  bouncePlan = null;
+                } else startBounce(dirX, dirY, 0.055, 0.3);
+              }
+              if (moved) {
+                trail.push({ x: player.x, y: player.y });
+                if (trail.length > 14) trail.shift();
+              }
+            } else if (trail.length) {
+              trail.shift();
+            }
+            /* the clock runs only while the orb is actually gliding */
+            timerRunning = moved;
+            for (var i = 0; i < gems.length; i++) {
+              var g = gems[i];
+              if (g.got) continue;
+              var gx = player.x - g.x,
+                gy = player.y - g.y;
+              if (gx * gx + gy * gy < 0.36) {
+                g.got = true;
+                gemCount++;
+                slowmoT = SLOWMO_DUR; /* brief 0.05s time dilation on every pickup */
+                /* scoring: 100 per diamond, +50 streak bonus per quick consecutive
+           pickup (caps at +200), so fast chains pay the most */
+                chain = animT - lastGemT < 6 ? chain + 1 : 1;
+                lastGemT = animT;
+                var pts = 100 + 50 * Math.min(chain - 1, 4);
+                score += pts;
+                addPopup(g.x, g.y - 0.55, "+" + pts, chain > 1 ? "#ffd166" : "#8ff7ff");
+                updateScoreHud();
+                bumpScore();
+                updateGemHud();
+                playGemSfx();
+                haptic("light");
+                burst(g.x, g.y, 10);
+                /* every diamond on the level collected: flat 500 bonus, a distinct
+           chime and a short banner so the sweep has its own moment */
+                if (!allGemsDone && gemCount >= totalGems) {
+                  allGemsDone = true;
+                  score += 500;
+                  addPopup(player.x, player.y - 0.9, "+500", "#ffd166");
+                  updateScoreHud();
+                  bumpScore();
+                  playAllGemsSfx();
+                  haptic("success");
+                  burst(player.x, player.y, 16, ["#ffd166", "#6ff7ff", "#ffffff", "#7dffb0"]);
+                  showBanner("All Gems Collected", "+500 bonus pts", 1400, "gemPop");
+                }
+                updateResume();
+                saveRunState();
+              }
+            }
+            /* shield pickups: grabbing one wraps the orb in a protective bubble */
+            for (var si = 0; si < shields.length; si++) {
+              var sh = shields[si];
+              if (sh.got) continue;
+              var shx = player.x - sh.x,
+                shy = player.y - sh.y;
+              if (shx * shx + shy * shy < 0.36) {
+                sh.got = true;
+                /* consecutive shields stack: each pickup adds another 7 seconds */
+                shieldT += SHIELD_DUR;
+                addPopup(sh.x, sh.y - 0.55, "Shield! +12s", "#ffd166");
+                playShieldSfx();
+                sfx.shield();
+                haptic("success");
+                burst(sh.x, sh.y, 12, ["#ffd166", "#fff4cf", "#6ff7ff", "#ffffff"]);
+                updateResume();
+                saveRunState();
+              }
+            }
+            /* urchins patrol even while the orb rests — time your sends */
+            updateUrchins(dt);
+            if (invulnT > 0) invulnT = Math.max(0, invulnT - dt);
+            if (shieldT > 0) {
+              shieldT = Math.max(0, shieldT - dt);
+              /* the shield just expired: hold the chip on "0s" for a beat so the
+     counter reads all the way down, then play the ran-out clip once */
+              if (shieldT <= 0) {
+                shieldOutT = 0.7;
+                playShieldOutSfx();
+                haptic("light");
+              }
+            }
+            if (shieldOutT > 0) shieldOutT = Math.max(0, shieldOutT - dt);
+            revealAround();
+            if (invulnT <= 0) {
+              for (var ui = 0; ui < urchins.length; ui++) {
+                var uu = urchins[ui],
+                  udx = player.x - uu.x,
+                  udy = player.y - uu.y;
+                if (udx * udx + udy * udy < URCHIN_HIT2) {
+                  if (shieldT > 0) {
+                    /* shielded: the urchin bursts harmlessly and respawns elsewhere */
+                    urchinBurst(uu.x, uu.y);
+                    playUrchinDestroySfx();
+                    haptic("medium");
+                    relocateUrchin(uu);
+                  } else {
+                    knockback();
+                  }
+                  break;
+                }
+              }
+            }
+            var ex = player.x - exitC.x,
+              ey = player.y - exitC.y;
+            if (ex * ex + ey * ey < 0.36) winLevel();
+            /* countdown: the clock only ticks while gliding; 00:00 fails the level */
+            if (state === "playing" && timerRunning) {
+              elapsed += dt;
+              var Lt = LEVELS[levelIndex - 1];
+              if (Lt && elapsed >= Lt.time) failLevel();
+            }
+          } else if (state === "entering") {
+          /* portal-entry animation: spiral the orb into the portal center while it
+     shrinks and fades, suck in its trail, then fire the level-clear flow */
+            enterT += dt;
+            var ep3 = clamp(enterT / ENTER_DUR, 0, 1),
+              pe = ep3 * ep3;
+            var ang = enterA0 + ENTER_SPIN * pe,
+              rad = enterR0 * (1 - pe);
+            player.x = exitC.x + Math.cos(ang) * rad;
+            player.y = exitC.y + Math.sin(ang) * rad;
+            if (trail.length) trail.shift();
+            if (trail.length) trail.shift();
+            spawnAccum += dt;
+            while (spawnAccum >= 0.07) {
+              spawnAccum -= 0.07;
+              var sa = Math.random() * 6.283,
+                sr2 = 0.45 + Math.random() * 0.5,
+                ssp = 1.5 + Math.random() * 1.7;
+              particles.push({
+                x: exitC.x + Math.cos(sa) * sr2,
+                y: exitC.y + Math.sin(sa) * sr2,
+                vx: -Math.cos(sa) * ssp - Math.sin(sa) * 0.9,
+                vy: -Math.sin(sa) * ssp + Math.cos(sa) * 0.9,
+                life: 0.28,
+                max: 0.28,
+                color: Math.random() < 0.5 ? "#7dffb0" : "#a5ffe0",
+                r: 0.03 + Math.random() * 0.03,
+                streak: true,
+              });
+            }
+            if (enterT >= ENTER_DUR) finishWin();
+          }
+          /* dynamic zoom: push in while the orb glides, pull back when it rests so
+     players get a read on the maze around them between moves; the portal
+     entry keeps the camera pushed in on the portal for the dive */
+          if (grid) {
+            var tCs = state === "entering" ? csIn : moved ? csIn : csOut;
+            /* while the player pans, the camera is theirs: no follow, no zoom */
+            if (!panning) {
+              if (Math.abs(tCs - cs) > 0.05) cs += (tCs - cs) * Math.min(1, dt * 3);
+              mazeW = cs * cols;
+              mazeH = cs * rows;
+              var kf = Math.min(1, dt * 6.5);
+              var tx, ty;
+              if (state === "entering") {
+                tx = exitC.x * cs;
+                ty = exitC.y * cs;
+              } else {
+                tx = player.x * cs + (path ? dirX : 0) * cs * 0.55;
+                ty = player.y * cs + (path ? dirY : 0) * cs * 0.55;
+              }
+              camX += (tx - camX) * kf;
+              camY += (ty - camY) * kf;
+            }
+            if (mazeW <= W) camX = mazeW / 2;
+            else camX = clamp(camX, W / 2, mazeW - W / 2);
+            if (mazeH <= H) camY = mazeH / 2;
+            else camY = clamp(camY, H / 2, mazeH - H / 2);
+          }
+          for (var p = particles.length - 1; p >= 0; p--) {
+            var q = particles[p];
+            q.life -= dt;
+            if (q.life <= 0) {
+              particles.splice(p, 1);
+              continue;
+            }
+            q.x += q.vx * dt;
+            q.y += q.vy * dt;
+            if (q.grav !== 0) q.vy += 2.8 * dt; /* rings and the core flash ignore gravity */
+          }
+          for (var pj = popups.length - 1; pj >= 0; pj--) {
+            var pu = popups[pj];
+            pu.life -= dt;
+            pu.y -= dt * 0.9;
+            if (pu.life <= 0) popups.splice(pj, 1);
+          }
+        }
+
+        var last = 0;
+        function frame(now) {
+          if (!last) last = now;
+          var dt = (now - last) / 1000;
+          last = now;
+          if (dt > 0.1) dt = 0.1;
+          if (dt < 0) dt = 0;
+          /* time dilation: while the gem slow-mo window is active, the whole game
+     runs at a fraction of speed for a beat, then snaps back */
+          var ts = 1;
+          if (slowmoT > 0) {
+            ts = SLOWMO_SCALE;
+            slowmoT = Math.max(0, slowmoT - dt);
+          }
+          var sdt = dt * ts;
+          update(sdt);
+          updateTimerDim();
+          render(animT);
+          animT += sdt;
+          updateTimerHud();
+          updateShieldHud();
+          updateMenuFx(dt);
+          requestAnimationFrame(frame);
+        }
+
+        window.addEventListener("resize", function () {
+          applySafe();
+          layout();
+          if (state === "how") fitHowPanel();
+        });
+
+        function boot() {
+          applySafe();
+          layout();
+          if (state === "boot") showMenu();
+          requestAnimationFrame(frame);
+        }
+        function withTimeout(p, ms) {
+          return Promise.race([
+            p,
+            new Promise(function (res) {
+              setTimeout(function () {
+                res(null);
+              }, ms);
+            }),
+          ]);
+        }
+        (async function () {
+          try {
+            window.RemixSDK.onToggleMute(function (d) {
+              muted = !!(d && d.isMuted);
+              if (master) master.gain.value = muted ? 0 : 1;
+              if (muted) {
+                try {
+                  contactSfx.pause();
+                } catch (e) {}
+                try {
+                  wallSfx.pause();
+                } catch (e) {}
+                try {
+                  respawnSfx.pause();
+                } catch (e) {}
+                try {
+                  gemSfx.pause();
+                } catch (e) {}
+                try {
+                  allGemsSfx.pause();
+                } catch (e) {}
+                try {
+                  portalSfx.pause();
+                } catch (e) {}
+                try {
+                  shieldSfx.pause();
+                } catch (e) {}
+                try {
+                  urchinDestroySfx.pause();
+                } catch (e) {}
+                try {
+                  shieldOutSfx.pause();
+                } catch (e) {}
+              }
+            });
+            window.RemixSDK.onPlay(function (d) {
+              if (!restored) {
+                pendingPlay = d || {};
+                return;
+              }
+              handlePlay(d && d.levelIndex ? d.levelIndex : 0);
+            });
+            var info = await withTimeout(window.RemixSDK.ready(), 3000);
+            if (info && info.contentSafeAreaInset) safe = info.contentSafeAreaInset;
+            refreshProgress();
+            try {
+              var gs = window.RemixSDK.gameState;
+              if (gs) {
+                if (gs.runTimes) runTimes = gs.runTimes;
+                if (gs.runStars) runStars = gs.runStars;
+                if (gs.runDone) pendingStats = true;
+                if (gs.cycleReset) cycleReset = true;
+                if (gs.cycleStars && typeof gs.cycleStars === "object") cycleStars = gs.cycleStars;
+                if (typeof gs.sessionUnlocked === "number") sessionUnlocked = Math.max(1, gs.sessionUnlocked);
+                if (gs.seenLevels && typeof gs.seenLevels === "object") seenLevels = gs.seenLevels;
+                if (gs.resume && gs.resume.level >= 1 && gs.resume.level <= LEVELS.length) resumeData = gs.resume;
+              }
+            } catch (e) {}
+            window.RemixSDK.onGameInfo(function (i) {
+              if (i && i.contentSafeAreaInset) {
+                safe = i.contentSafeAreaInset;
+                applySafe();
+                layout();
+              }
+              if (state === "how") fitHowPanel();
+            });
+          } catch (e) {}
+          restored = true;
+          if (pendingPlay) {
+            var pp = pendingPlay;
+            pendingPlay = null;
+            handlePlay(pp && pp.levelIndex ? pp.levelIndex : 0);
+          }
+          boot();
+        })();
+      })();
+    </script>
+
+    <script type="module"></script>
+  </body>
+</html>
