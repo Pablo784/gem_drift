@@ -558,6 +558,35 @@
       #nextBtn:active {
         transform: translateX(-50%) scale(0.96);
       }
+      /* desktop convenience: Try Again beside Main Menu after a failed level,
+   shown only when the host supplies no retry UI of its own */
+      #failBtns {
+        position: fixed;
+        left: 50%;
+        bottom: calc(30px + env(safe-area-inset-bottom, 0px));
+        transform: translateX(-50%);
+        z-index: 8;
+        display: none;
+        flex-direction: row;
+        align-items: stretch;
+        justify-content: center;
+        gap: 10px;
+        width: max-content;
+        max-width: 92vw;
+      }
+      #failBtns.show {
+        display: flex;
+        animation: nextIn 0.4s cubic-bezier(0.2, 1.5, 0.4, 1) both;
+      }
+      #failBtns .mbtn {
+        width: auto;
+        min-width: 132px;
+        max-width: 44vw;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+      }
+      #failBtns .mbtn:active {
+        transform: scale(0.96);
+      }
       @keyframes nextIn {
         0% {
           opacity: 0;
@@ -929,6 +958,10 @@
       <div id="bannerSub"></div>
     </div>
     <button id="nextBtn" class="mbtn primary">Next Level &#9654;</button>
+    <div id="failBtns">
+      <button id="retryBtn" class="mbtn primary">Try Again &#8635;</button>
+      <button id="failMenuBtn" class="mbtn">Main Menu</button>
+    </div>
     <div id="menu" class="ov">
       <canvas id="menuFx"></canvas>
       <div class="mWrap">
@@ -1112,7 +1145,10 @@
           restartBtn = $("restartBtn"),
           quitBtn = $("quitBtn"),
           lvlGrid = $("lvlGrid");
-        var nextBtn = $("nextBtn");
+        var nextBtn = $("nextBtn"),
+          retryBtn = $("retryBtn"),
+          failBtns = $("failBtns"),
+          failMenuBtn = $("failMenuBtn");
         var statsOv = $("statsOv"),
           statsList = $("statsList"),
           statsTotal = $("statsTotal"),
@@ -1800,7 +1836,7 @@
           "Assets/stopwatch_timer.webp";
         /* icon URLs for the per-level instruction banner, sized like How to Play */
         var GEM_URL =
-          "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/66912d6c-3efc-4e67-aed1-2b0d35d72649/a-sims-like-diamond-cbdv6d-Z2A5.webp?46Oj";
+          "Assets/sims_like_diamond.webp";
         function bIco(cls, url) {
           return '<img class="bIco ' + cls + '" alt="" draggable="false" src="' + url + '">';
         }
@@ -1826,7 +1862,7 @@
           gemReady = true;
         };
         gemImg.src =
-          "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/66912d6c-3efc-4e67-aed1-2b0d35d72649/a-sims-like-diamond-cbdv6d-Z2A5.webp?46Oj";
+          "Assets/sims_like_diamond.webp";
         /* custom urchin sprite: replaces the drawn spiky hazard once loaded */
         var urchinImg = new Image(),
           urchinReady = false;
@@ -1834,7 +1870,7 @@
           urchinReady = true;
         };
         urchinImg.src =
-          "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/66912d6c-3efc-4e67-aed1-2b0d35d72649/urchin-f2urci-qJzb.webp?Vb1p";
+          "Assets/urchin.webp";
         /* custom shield sprite: replaces the drawn gold shield pickup once loaded */
         var shieldImg = new Image(),
           shieldReady = false;
@@ -1842,7 +1878,7 @@
           shieldReady = true;
         };
         shieldImg.src =
-          "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/66912d6c-3efc-4e67-aed1-2b0d35d72649/gold-shield-with-a-s-3etozx-GdZo.webp?cQuM";
+          "Assets/gold_shield_seahorse.webp";
         /* custom pause icon: swaps in the webp once loaded, emoji stays as fallback */
         var pauseImgEl = $("pauseImgEl");
         pauseImgEl.addEventListener("load", function () {
@@ -2094,7 +2130,7 @@
         /* all-gems-collected sound: a dedicated audio clip played when the last
    diamond on a level is swept up */
         var allGemsSfx = new Audio(
-          "Sounds/all_gems_collect.mp3",
+          "Sounds/gem_collect.mp3",
         );
         allGemsSfx.preload = "auto";
         function playAllGemsSfx() {
@@ -4244,6 +4280,18 @@
           hideNextBtn();
           if (levelIndex < LEVELS.length) startLevel(levelIndex + 1);
         });
+        /* desktop convenience: retry the level that was just failed */
+        retryBtn.addEventListener("click", function () {
+          haptic("light");
+          hideRetryBtn();
+          startLevel(levelIndex);
+        });
+        /* desktop convenience: bail out to the main menu from the fail screen */
+        failMenuBtn.addEventListener("click", function () {
+          haptic("light");
+          hideRetryBtn();
+          showMenu();
+        });
 
         /* ---------------- menu & pause ---------------- */
         /* the Next Level button is a desktop/preview convenience: it only shows
@@ -4263,8 +4311,19 @@
         function hideNextBtn() {
           nextBtn.classList.remove("show");
         }
+        /* the Try Again button is the same desktop/preview convenience for a failed
+   level: it only shows when the host is not running level progression and
+   thus provides no retry UI of its own */
+        function showRetryBtn() {
+          if (hostLevels()) return;
+          failBtns.classList.add("show");
+        }
+        function hideRetryBtn() {
+          failBtns.classList.remove("show");
+        }
         function hideOvs() {
           hideNextBtn();
+          hideRetryBtn();
           menuEl.classList.remove("show");
           levelsOv.classList.remove("show");
           howOv.classList.remove("show");
@@ -4959,6 +5018,9 @@
             );
           }
           report(0);
+          /* desktop/preview has no host retry screen, so offer a Try Again button
+     once the fail banner has had its moment */
+          setTimeout(showRetryBtn, 1500);
         }
         function finishWin() {
           state = "won";
