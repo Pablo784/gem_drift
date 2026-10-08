@@ -5,6 +5,8 @@
     <script type="importmap">
       { "imports": {} }
     </script>
+    <meta charset="utf-8" />
+
     <meta charset="UTF-8" />
     <meta
       name="viewport"
@@ -18,7 +20,7 @@
       href="https://fonts.googleapis.com/css2?family=Cabin:ital,wght@0,400..700;1,400..700&family=Damion&display=swap"
       rel="stylesheet"
     />
-    <script src="https://cdn.jsdelivr.net/npm/@remix-gg/sdk@0.17.0/dist/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@remix-gg/sdk@0.19.0/dist/index.min.js"></script>
     <style>
       * {
         margin: 0;
@@ -114,6 +116,17 @@
         100% {
           transform: scale(1);
         }
+      }
+      /* star chip: the live star rating, dimming one star per urchin hit */
+      #starChip {
+        color: #ffd166;
+        background: rgba(255, 209, 102, 0.1);
+        gap: 2px;
+      }
+      #starChip .stImg {
+        width: 15px;
+        height: 15px;
+        vertical-align: 0;
       }
       #gemHudImg {
         width: 15px;
@@ -597,10 +610,11 @@
         min-width: 0;
         overflow: hidden;
         touch-action: pan-y;
+        transition: height 0.32s cubic-bezier(0.3, 0.9, 0.3, 1);
       }
       .howList {
         display: flex;
-        align-items: stretch;
+        align-items: flex-start;
         gap: 0;
         color: #cfd9ff;
         font-size: 12.5px;
@@ -694,14 +708,46 @@
         pointer-events: none;
         filter: drop-shadow(0 0 5px rgba(111, 247, 255, 0.6));
       }
-      /* gold shield icon in the How to Play list: same 20px box as the other icons */
+      /* gold shield icon in the How to Play list: bigger than the other icons
+   (26px) with a soft gold halo disc behind it and a slow glow pulse, so it
+   reads as the Power-Ups focal point */
       .shImg {
-        width: 20px;
-        height: 20px;
+        width: 26px;
+        height: 26px;
         object-fit: contain;
-        vertical-align: -0.35em;
+        vertical-align: -0.4em;
         pointer-events: none;
-        filter: drop-shadow(0 0 5px rgba(255, 209, 102, 0.6));
+        border-radius: 50%;
+        background: radial-gradient(
+          circle,
+          rgba(255, 209, 102, 0.5) 0%,
+          rgba(255, 209, 102, 0.18) 50%,
+          rgba(255, 209, 102, 0) 75%
+        );
+        box-shadow: 0 0 12px 3px rgba(255, 209, 102, 0.45);
+        filter: drop-shadow(0 0 6px rgba(255, 209, 102, 0.8));
+        animation: shPulse 1.8s ease-in-out infinite;
+      }
+      @keyframes shPulse {
+        0%,
+        100% {
+          transform: scale(1);
+          filter: drop-shadow(0 0 6px rgba(255, 209, 102, 0.7));
+        }
+        50% {
+          transform: scale(1.12);
+          filter: drop-shadow(0 0 12px rgba(255, 209, 102, 1));
+        }
+      }
+      /* the shield line gets its own gold chip so the Power-Ups section has a
+   clear focal point instead of one more plain row */
+      .howItem.shieldItem {
+        background: linear-gradient(135deg, rgba(255, 209, 102, 0.22), rgba(255, 209, 102, 0.08));
+        border-left: 3px solid rgba(255, 209, 102, 0.9);
+        box-shadow:
+          0 0 14px rgba(255, 209, 102, 0.35),
+          inset 0 0 12px rgba(255, 209, 102, 0.12);
+        color: #fff3d6;
       }
       /* trophy + stopwatch icons: stats popup titles and the fail banner,
    sized to match the How to Play icons (26px) */
@@ -858,6 +904,7 @@
           /><span id="gemCountTxt">0/4</span>
         </div>
         <div class="seg" id="scoreChip"><span id="scoreTxt">0 pts</span></div>
+        <div class="seg" id="starChip"><span id="starTxt"></span></div>
         <div class="seg" id="timerChip"><span id="timerTxt">00:00</span></div>
         <div class="seg" id="shieldChip">
           <img
@@ -907,77 +954,94 @@
           <button class="howArrow" id="howPrev" aria-label="Previous">&#8249;</button>
           <div class="howViewport" id="howViewport">
             <div class="howList" id="howList">
-          <div class="howSec">
-            <div class="howHead">Controls</div>
-            <div class="howItem">Tap any spot in the maze — the orb pathfinds its own way there</div>
-            <div class="howItem">Tap the orb itself to stop it where it is</div>
-            <div class="howItem">Drag anywhere to pan the camera and scout the maze</div>
-            <div class="howItem">Tap a wall and the orb glides as close as it can, then softly bounces off</div>
-          </div>
-          <div class="howSec">
-            <div class="howHead">Goal</div>
-            <div class="howItem">Collect every diamond for a +500 bonus</div>
-            <div class="howItem">Reach the glowing green portal to finish</div>
-            <div class="howItem">
-              Stars go by speed: finish with half the clock left for
-              <img
-                class="stImg"
-                alt=""
-                draggable="false"
-                src="Assets/star.webp"
-              /><img
-                class="stImg"
-                alt=""
-                draggable="false"
-                src="Assets/star.webp"
-              /><img
-                class="stImg"
-                alt=""
-                draggable="false"
-                src="Assets/star.webp"
-              />, a quarter for
-              <img
-                class="stImg"
-                alt=""
-                draggable="false"
-                src="Assets/star.webp"
-              /><img
-                class="stImg"
-                alt=""
-                draggable="false"
-                src="Assets/star.webp"
-              />
-            </div>
-          </div>
-          <div class="howSec">
-            <div class="howHead">Maze</div>
-            <div class="howItem">Every corridor connects through &mdash; there are no true dead ends</div>
-            <div class="howItem">A soft cyan glow marks a passage that opens through to the far side</div>
-            <div class="howItem">There are no arrows &mdash; the glow alone shows the way through, so follow it instead of turning back</div>
-          </div>
-          <div class="howSec">
-            <div class="howHead">Timer</div>
-            <div class="howItem">The clock counts down — it only ticks while the orb glides</div>
-            <div class="howItem">If it hits 00:00 the level fails — try again</div>
-          </div>
-          <div class="howSec">
-            <div class="howHead">Hazards</div>
-            <div class="howItem">Spiky urchins patrol the corridors — time your sends to slip past them</div>
-            <div class="howItem">Touch one and the orb is knocked back to the start; gems you collected are kept</div>
-          </div>
-          <div class="howSec">
-            <div class="howHead">Power-ups</div>
-            <div class="howItem">
-              <img
-                class="shImg"
-                alt=""
-                draggable="false"
-                src="Assets/gold_shield_seahorse.webp"
-              /> Gold shield pickups are scattered through the maze — grab one to bubble up
-            </div>
-            <div class="howItem">While the bubble holds, urchins burst harmlessly on contact instead of knocking you back</div>
-            <div class="howItem">The shield lasts 12 seconds — the HUD chip counts it down, then it fades</div>
-          </div>
+              <div class="howSec">
+                <div class="howHead">Controls</div>
+                <div class="howItem">Tap any spot in the maze — the orb pathfinds its own way there</div>
+                <div class="howItem">Tap the orb itself to stop it where it is</div>
+                <div class="howItem">Drag anywhere to pan the camera and scout the maze</div>
+                <div class="howItem">Tap a wall and the orb glides as close as it can, then softly bounces off</div>
+              </div>
+              <div class="howSec">
+                <div class="howHead">Goal</div>
+                <div class="howItem">Collect every diamond for a +500 bonus</div>
+                <div class="howItem">Reach the glowing green portal to finish</div>
+                <div class="howItem">
+                  Stars go by speed: finish with half the clock left for
+                  <img
+                    class="stImg"
+                    alt=""
+                    draggable="false"
+                    src="Assets/star.webp"
+                  /><img
+                    class="stImg"
+                    alt=""
+                    draggable="false"
+                    src="Assets/star.webp"
+                  /><img
+                    class="stImg"
+                    alt=""
+                    draggable="false"
+                    src="Assets/star.webp"
+                  />, a quarter for
+                  <img
+                    class="stImg"
+                    alt=""
+                    draggable="false"
+                    src="Assets/star.webp"
+                  /><img
+                    class="stImg"
+                    alt=""
+                    draggable="false"
+                    src="Assets/star.webp"
+                  />
+                </div>
+                <div class="howItem">
+                  Every urchin hit knocks off a star &mdash; four hits fails the level
+                </div>
+              </div>
+              <div class="howSec">
+                <div class="howHead">Maze</div>
+                <div class="howItem">Every corridor connects through &mdash; there are no true dead ends</div>
+                <div class="howItem">A soft cyan glow marks a passage that opens through to the far side</div>
+                <div class="howItem">
+                  There are no arrows &mdash; the glow alone shows the way through, so follow it instead of turning back
+                </div>
+                <div class="howItem">
+                  Early levels start fogged &mdash; the orb reveals the maze as it explores
+                </div>
+                <div class="howItem">From level 4 on the whole maze is visible from the start</div>
+              </div>
+              <div class="howSec">
+                <div class="howHead">Timer</div>
+                <div class="howItem">The clock counts down — it only ticks while the orb glides</div>
+                <div class="howItem">If it hits 00:00 the level fails — try again</div>
+                <div class="howItem">The timer chip turns red and pulses in the last 10 seconds</div>
+                <div class="howItem">Getting knocked back keeps your remaining time — only stars are lost</div>
+                <div class="howItem">Finishing under par pays a clear bonus — 250 base plus 10 pts per second saved</div>
+              </div>
+              <div class="howSec">
+                <div class="howHead">Hazards</div>
+                <div class="howItem">Spiky urchins patrol the corridors — time your sends to slip past them</div>
+                <div class="howItem">
+                  Touch one and the orb is knocked back to the start; gems you collected are kept
+                </div>
+              </div>
+              <div class="howSec">
+                <div class="howHead">Power-ups</div>
+                <div class="howItem shieldItem">
+                  <img
+                    class="shImg"
+                    alt=""
+                    draggable="false"
+                    src="Assets/gold_shield_seahorse.webp"
+                  />
+                  Gold shield pickups are scattered through the maze — grab one to bubble up
+                </div>
+                <div class="howItem">
+                  While the bubble holds, urchins burst harmlessly on contact instead of knocking you back
+                </div>
+                <div class="howItem">The shield lasts 12 seconds — the HUD chip counts it down, then it fades</div>
+              </div>
             </div>
           </div>
           <button class="howArrow" id="howNext" aria-label="Next">&#8250;</button>
@@ -1027,6 +1091,8 @@
           bannerSub = $("bannerSub");
         var scoreChip = $("scoreChip"),
           scoreTxt = $("scoreTxt");
+        var starChip = $("starChip"),
+          starTxt = $("starTxt");
         var pauseBtn = $("pauseBtn"),
           menuEl = $("menu"),
           levelsOv = $("levelsOv"),
@@ -1080,46 +1146,511 @@
    connected. links/gaps are [row, col] pairs. */
         var LEVEL_LAYOUTS = [
           {
-            links: [[2,1],[2,9],[4,1],[4,9],[6,1],[6,9],[8,1],[8,9],[10,1],[10,9],[12,1],[12,9],[4,5],[8,5]],
-            gaps: [[3,5],[7,5],[11,5]],
+            links: [
+              [2, 1],
+              [2, 9],
+              [4, 1],
+              [4, 9],
+              [6, 1],
+              [6, 9],
+              [8, 1],
+              [8, 9],
+              [10, 1],
+              [10, 9],
+              [12, 1],
+              [12, 9],
+              [4, 5],
+              [8, 5],
+            ],
+            gaps: [
+              [3, 5],
+              [7, 5],
+              [11, 5],
+            ],
           },
           {
-            links: [[2,1],[2,11],[4,1],[4,11],[6,1],[6,11],[8,1],[8,11],[10,1],[10,11],[12,1],[12,11],[14,1],[14,11],[4,6],[8,6],[12,6],[6,3],[10,9]],
-            gaps: [[3,6],[7,6],[11,6],[5,9],[9,3]],
+            links: [
+              [2, 1],
+              [2, 11],
+              [4, 1],
+              [4, 11],
+              [6, 1],
+              [6, 11],
+              [8, 1],
+              [8, 11],
+              [10, 1],
+              [10, 11],
+              [12, 1],
+              [12, 11],
+              [14, 1],
+              [14, 11],
+              [4, 6],
+              [8, 6],
+              [12, 6],
+              [6, 3],
+              [10, 9],
+            ],
+            gaps: [
+              [3, 6],
+              [7, 6],
+              [11, 6],
+              [5, 9],
+              [9, 3],
+            ],
           },
           {
-            links: [[2,1],[2,11],[4,1],[4,11],[6,1],[6,11],[8,1],[8,11],[10,1],[10,11],[12,1],[12,11],[14,1],[14,11],[16,1],[16,11],[4,6],[8,6],[12,6],[6,9],[10,3],[14,9]],
-            gaps: [[3,6],[7,6],[11,6],[15,6],[5,3],[9,9],[13,3]],
+            links: [
+              [2, 1],
+              [2, 11],
+              [4, 1],
+              [4, 11],
+              [6, 1],
+              [6, 11],
+              [8, 1],
+              [8, 11],
+              [10, 1],
+              [10, 11],
+              [12, 1],
+              [12, 11],
+              [14, 1],
+              [14, 11],
+              [16, 1],
+              [16, 11],
+              [4, 6],
+              [8, 6],
+              [12, 6],
+              [6, 9],
+              [10, 3],
+              [14, 9],
+            ],
+            gaps: [
+              [3, 6],
+              [7, 6],
+              [11, 6],
+              [15, 6],
+              [5, 3],
+              [9, 9],
+              [13, 3],
+            ],
           },
           {
-            links: [[2,1],[2,13],[4,1],[4,13],[6,1],[6,13],[8,1],[8,13],[10,1],[10,13],[12,1],[12,13],[14,1],[14,13],[16,1],[16,13],[18,1],[18,13],[4,7],[8,7],[12,7],[16,7],[6,11],[10,3],[14,11]],
-            gaps: [[3,7],[7,7],[11,7],[15,7],[5,11],[9,3],[13,11],[17,3]],
+            links: [
+              [2, 1],
+              [2, 13],
+              [4, 1],
+              [4, 13],
+              [6, 1],
+              [6, 13],
+              [8, 1],
+              [8, 13],
+              [10, 1],
+              [10, 13],
+              [12, 1],
+              [12, 13],
+              [14, 1],
+              [14, 13],
+              [16, 1],
+              [16, 13],
+              [18, 1],
+              [18, 13],
+              [4, 7],
+              [8, 7],
+              [12, 7],
+              [16, 7],
+              [6, 11],
+              [10, 3],
+              [14, 11],
+            ],
+            gaps: [
+              [3, 7],
+              [7, 7],
+              [11, 7],
+              [15, 7],
+              [5, 11],
+              [9, 3],
+              [13, 11],
+              [17, 3],
+            ],
           },
           {
-            links: [[2,1],[2,13],[4,1],[4,13],[6,1],[6,13],[8,1],[8,13],[10,1],[10,13],[12,1],[12,13],[14,1],[14,13],[16,1],[16,13],[18,1],[18,13],[20,1],[20,13],[4,7],[8,7],[12,7],[16,7],[6,11],[10,3],[14,11],[18,7]],
-            gaps: [[3,7],[7,7],[11,7],[15,7],[19,7],[5,11],[9,3],[13,11],[17,3]],
+            links: [
+              [2, 1],
+              [2, 13],
+              [4, 1],
+              [4, 13],
+              [6, 1],
+              [6, 13],
+              [8, 1],
+              [8, 13],
+              [10, 1],
+              [10, 13],
+              [12, 1],
+              [12, 13],
+              [14, 1],
+              [14, 13],
+              [16, 1],
+              [16, 13],
+              [18, 1],
+              [18, 13],
+              [20, 1],
+              [20, 13],
+              [4, 7],
+              [8, 7],
+              [12, 7],
+              [16, 7],
+              [6, 11],
+              [10, 3],
+              [14, 11],
+              [18, 7],
+            ],
+            gaps: [
+              [3, 7],
+              [7, 7],
+              [11, 7],
+              [15, 7],
+              [19, 7],
+              [5, 11],
+              [9, 3],
+              [13, 11],
+              [17, 3],
+            ],
           },
           {
-            links: [[2,1],[2,15],[4,1],[4,15],[6,1],[6,15],[8,1],[8,15],[10,1],[10,15],[12,1],[12,15],[14,1],[14,15],[16,1],[16,15],[18,1],[18,15],[20,1],[20,15],[22,1],[22,15],[4,8],[8,8],[12,8],[16,8],[20,8],[6,12],[10,4],[14,12],[18,4]],
-            gaps: [[3,8],[7,8],[11,8],[15,8],[19,8],[5,12],[9,4],[13,12],[17,4],[21,8]],
+            links: [
+              [2, 1],
+              [2, 15],
+              [4, 1],
+              [4, 15],
+              [6, 1],
+              [6, 15],
+              [8, 1],
+              [8, 15],
+              [10, 1],
+              [10, 15],
+              [12, 1],
+              [12, 15],
+              [14, 1],
+              [14, 15],
+              [16, 1],
+              [16, 15],
+              [18, 1],
+              [18, 15],
+              [20, 1],
+              [20, 15],
+              [22, 1],
+              [22, 15],
+              [4, 8],
+              [8, 8],
+              [12, 8],
+              [16, 8],
+              [20, 8],
+              [6, 12],
+              [10, 4],
+              [14, 12],
+              [18, 4],
+            ],
+            gaps: [
+              [3, 8],
+              [7, 8],
+              [11, 8],
+              [15, 8],
+              [19, 8],
+              [5, 12],
+              [9, 4],
+              [13, 12],
+              [17, 4],
+              [21, 8],
+            ],
           },
           {
-            links: [[2,1],[2,15],[4,1],[4,15],[6,1],[6,15],[8,1],[8,15],[10,1],[10,15],[12,1],[12,15],[14,1],[14,15],[16,1],[16,15],[18,1],[18,15],[20,1],[20,15],[22,1],[22,15],[24,1],[24,15],[4,8],[8,8],[12,8],[16,8],[20,8],[24,8],[6,12],[10,4],[14,12],[18,4],[22,12]],
-            gaps: [[3,8],[7,8],[11,8],[15,8],[19,8],[23,8],[5,12],[9,4],[13,12],[17,4],[21,12]],
+            links: [
+              [2, 1],
+              [2, 15],
+              [4, 1],
+              [4, 15],
+              [6, 1],
+              [6, 15],
+              [8, 1],
+              [8, 15],
+              [10, 1],
+              [10, 15],
+              [12, 1],
+              [12, 15],
+              [14, 1],
+              [14, 15],
+              [16, 1],
+              [16, 15],
+              [18, 1],
+              [18, 15],
+              [20, 1],
+              [20, 15],
+              [22, 1],
+              [22, 15],
+              [24, 1],
+              [24, 15],
+              [4, 8],
+              [8, 8],
+              [12, 8],
+              [16, 8],
+              [20, 8],
+              [24, 8],
+              [6, 12],
+              [10, 4],
+              [14, 12],
+              [18, 4],
+              [22, 12],
+            ],
+            gaps: [
+              [3, 8],
+              [7, 8],
+              [11, 8],
+              [15, 8],
+              [19, 8],
+              [23, 8],
+              [5, 12],
+              [9, 4],
+              [13, 12],
+              [17, 4],
+              [21, 12],
+            ],
           },
           {
-            links: [[2,1],[2,17],[4,1],[4,17],[6,1],[6,17],[8,1],[8,17],[10,1],[10,17],[12,1],[12,17],[14,1],[14,17],[16,1],[16,17],[18,1],[18,17],[20,1],[20,17],[22,1],[22,17],[24,1],[24,17],[4,9],[8,9],[12,9],[16,9],[20,9],[24,9],[6,13],[10,5],[14,13],[18,5],[22,13]],
-            gaps: [[3,9],[7,9],[11,9],[15,9],[19,9],[23,9],[5,13],[9,5],[13,13],[17,5],[21,13]],
+            links: [
+              [2, 1],
+              [2, 17],
+              [4, 1],
+              [4, 17],
+              [6, 1],
+              [6, 17],
+              [8, 1],
+              [8, 17],
+              [10, 1],
+              [10, 17],
+              [12, 1],
+              [12, 17],
+              [14, 1],
+              [14, 17],
+              [16, 1],
+              [16, 17],
+              [18, 1],
+              [18, 17],
+              [20, 1],
+              [20, 17],
+              [22, 1],
+              [22, 17],
+              [24, 1],
+              [24, 17],
+              [4, 9],
+              [8, 9],
+              [12, 9],
+              [16, 9],
+              [20, 9],
+              [24, 9],
+              [6, 13],
+              [10, 5],
+              [14, 13],
+              [18, 5],
+              [22, 13],
+            ],
+            gaps: [
+              [3, 9],
+              [7, 9],
+              [11, 9],
+              [15, 9],
+              [19, 9],
+              [23, 9],
+              [5, 13],
+              [9, 5],
+              [13, 13],
+              [17, 5],
+              [21, 13],
+            ],
           },
           {
-            links: [[2,1],[2,17],[4,1],[4,17],[6,1],[6,17],[8,1],[8,17],[10,1],[10,17],[12,1],[12,17],[14,1],[14,17],[16,1],[16,17],[18,1],[18,17],[20,1],[20,17],[22,1],[22,17],[24,1],[24,17],[26,1],[26,17],[4,9],[8,9],[12,9],[16,9],[20,9],[24,9],[6,13],[10,5],[14,13],[18,5],[22,13],[26,9]],
-            gaps: [[3,9],[7,9],[11,9],[15,9],[19,9],[23,9],[27,9],[5,13],[9,5],[13,13],[17,5],[21,13],[25,9]],
+            links: [
+              [2, 1],
+              [2, 17],
+              [4, 1],
+              [4, 17],
+              [6, 1],
+              [6, 17],
+              [8, 1],
+              [8, 17],
+              [10, 1],
+              [10, 17],
+              [12, 1],
+              [12, 17],
+              [14, 1],
+              [14, 17],
+              [16, 1],
+              [16, 17],
+              [18, 1],
+              [18, 17],
+              [20, 1],
+              [20, 17],
+              [22, 1],
+              [22, 17],
+              [24, 1],
+              [24, 17],
+              [26, 1],
+              [26, 17],
+              [4, 9],
+              [8, 9],
+              [12, 9],
+              [16, 9],
+              [20, 9],
+              [24, 9],
+              [6, 13],
+              [10, 5],
+              [14, 13],
+              [18, 5],
+              [22, 13],
+              [26, 9],
+            ],
+            gaps: [
+              [3, 9],
+              [7, 9],
+              [11, 9],
+              [15, 9],
+              [19, 9],
+              [23, 9],
+              [27, 9],
+              [5, 13],
+              [9, 5],
+              [13, 13],
+              [17, 5],
+              [21, 13],
+              [25, 9],
+            ],
           },
           {
-            links: [[2,1],[2,19],[4,1],[4,19],[6,1],[6,19],[8,1],[8,19],[10,1],[10,19],[12,1],[12,19],[14,1],[14,19],[16,1],[16,19],[18,1],[18,19],[20,1],[20,19],[22,1],[22,19],[24,1],[24,19],[26,1],[26,19],[28,1],[28,19],[4,10],[8,10],[12,10],[16,10],[20,10],[24,10],[28,10],[6,15],[10,5],[14,15],[18,5],[22,15],[26,5]],
-            gaps: [[3,10],[7,10],[11,10],[15,10],[19,10],[23,10],[27,10],[5,15],[9,5],[13,15],[17,5],[21,15],[25,5],[29,10]],
+            links: [
+              [2, 1],
+              [2, 19],
+              [4, 1],
+              [4, 19],
+              [6, 1],
+              [6, 19],
+              [8, 1],
+              [8, 19],
+              [10, 1],
+              [10, 19],
+              [12, 1],
+              [12, 19],
+              [14, 1],
+              [14, 19],
+              [16, 1],
+              [16, 19],
+              [18, 1],
+              [18, 19],
+              [20, 1],
+              [20, 19],
+              [22, 1],
+              [22, 19],
+              [24, 1],
+              [24, 19],
+              [26, 1],
+              [26, 19],
+              [28, 1],
+              [28, 19],
+              [4, 10],
+              [8, 10],
+              [12, 10],
+              [16, 10],
+              [20, 10],
+              [24, 10],
+              [28, 10],
+              [6, 15],
+              [10, 5],
+              [14, 15],
+              [18, 5],
+              [22, 15],
+              [26, 5],
+            ],
+            gaps: [
+              [3, 10],
+              [7, 10],
+              [11, 10],
+              [15, 10],
+              [19, 10],
+              [23, 10],
+              [27, 10],
+              [5, 15],
+              [9, 5],
+              [13, 15],
+              [17, 5],
+              [21, 15],
+              [25, 5],
+              [29, 10],
+            ],
           },
         ];
+        /* procedural level layouts: each level's maze is generated from a seeded
+   spec, so it is fixed per level but far more intricate than a plain outer
+   ring. Full straight corridors run along every odd row; links open
+   right-angle connections between corridors on the even rows; gaps pinch
+   corridor cells into dead ends, which openDeadEnds then reopens as
+   through-passages. The col-1 and col-(cols-2) links on every connector row
+   keep the outer ring intact, so every level stays fully connected no matter
+   what else the generator does. Complexity ramps with the level: more
+   interior links and more pinches the deeper you go. */
+        function makeLayoutSpec(li, c, r) {
+          var rnd = mulberry32(li * 2654435761 + 991);
+          var links = [],
+            gaps = [],
+            connRows = [],
+            corrRows = [],
+            innerCols = [],
+            y,
+            x,
+            i;
+          for (y = 2; y <= r - 3; y += 2) connRows.push(y);
+          for (y = 1; y <= r - 2; y += 2) corrRows.push(y);
+          for (x = 3; x <= c - 4; x += 2) innerCols.push(x);
+          /* outer ring */
+          for (i = 0; i < connRows.length; i++) {
+            links.push([connRows[i], 1]);
+            links.push([connRows[i], c - 2]);
+          }
+          /* interior links: right-angle connections that break the long straight
+     runs into a proper maze; the count ramps with the level */
+          var nLinks = innerCols.length ? 3 + Math.round((li - 1) * 1.6) : 0;
+          var used = {},
+            guard = 0;
+          while (links.length < connRows.length * 2 + nLinks && guard++ < 2000) {
+            var lr = connRows[Math.floor(rnd() * connRows.length)];
+            var lc = innerCols[Math.floor(rnd() * innerCols.length)];
+            var key = lr + ":" + lc;
+            if (used[key]) continue;
+            used[key] = 1;
+            links.push([lr, lc]);
+          }
+          /* gaps: pinch corridor cells into dead ends. Kept at least three
+     columns apart on a row so no corridor cell is ever sealed off from the
+     rest of the maze */
+          var nGaps = innerCols.length ? 3 + Math.round((li - 1) * 2.2) : 0;
+          var byRow = {},
+            gGuard = 0;
+          while (gaps.length < nGaps && gGuard++ < 2000) {
+            var gr = corrRows[Math.floor(rnd() * corrRows.length)];
+            var gc = innerCols[Math.floor(rnd() * innerCols.length)];
+            var list = byRow[gr] || (byRow[gr] = []);
+            var ok = true;
+            for (i = 0; i < list.length; i++)
+              if (Math.abs(list[i] - gc) < 3) {
+                ok = false;
+                break;
+              }
+            if (!ok) continue;
+            list.push(gc);
+            gaps.push([gr, gc]);
+          }
+          return { links: links, gaps: gaps };
+        }
+        (function () {
+          for (var i = 0; i < LEVELS.length; i++)
+            LEVEL_LAYOUTS[i] = makeLayoutSpec(i + 1, LEVELS[i].cols, LEVELS[i].rows);
+        })();
         function levelName(i) {
           var L = LEVELS[i - 1];
           return (L && L.name) || "Level " + i;
@@ -1164,6 +1695,10 @@
         var revealed = null,
           revStamp = null,
           revGen = 0;
+        /* fog of war is a teaching tool for the early levels only: levels 1-3
+   keep it, levels 4+ drop it so the big mazes play as routing puzzles
+   instead of blind poking */
+        var fogOn = true;
         var cracks = [],
           mosses = [],
           dusts = [],
@@ -1183,6 +1718,10 @@
           chain = 0,
           lastGemT = -9,
           popups = [];
+        /* urchin hits this attempt: each one knocks a star off the rating, and
+   the fourth fails the level outright */
+        var hits = 0,
+          MAX_HITS = 4;
         /* gem-collect slow motion: a 0.05s window where time dilates for impact */
         var slowmoT = 0,
           SLOWMO_DUR = 0.05,
@@ -1201,6 +1740,10 @@
           enterA0 = 0,
           enterR0 = 0.5,
           spawnAccum = 0;
+        /* orb-vanish animation: when the last star is lost the orb shatters and
+   fades away before the fail banner and sound fire */
+        var VANISH_DUR = 0.75,
+          vanishT = 0;
         var orbHidden = false;
         var highestUnlocked = 1,
           starsMap = {};
@@ -1257,7 +1800,7 @@
           "Assets/stopwatch_timer.webp";
         /* icon URLs for the per-level instruction banner, sized like How to Play */
         var GEM_URL =
-          "Assets/sims_like_diamond.webp";
+          "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/66912d6c-3efc-4e67-aed1-2b0d35d72649/a-sims-like-diamond-cbdv6d-Z2A5.webp?46Oj";
         function bIco(cls, url) {
           return '<img class="bIco ' + cls + '" alt="" draggable="false" src="' + url + '">';
         }
@@ -1283,7 +1826,7 @@
           gemReady = true;
         };
         gemImg.src =
-          "Assets/sims_like_diamond.webp";
+          "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/66912d6c-3efc-4e67-aed1-2b0d35d72649/a-sims-like-diamond-cbdv6d-Z2A5.webp?46Oj";
         /* custom urchin sprite: replaces the drawn spiky hazard once loaded */
         var urchinImg = new Image(),
           urchinReady = false;
@@ -1291,7 +1834,7 @@
           urchinReady = true;
         };
         urchinImg.src =
-          "Assets/urchin.webp";
+          "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/66912d6c-3efc-4e67-aed1-2b0d35d72649/urchin-f2urci-qJzb.webp?Vb1p";
         /* custom shield sprite: replaces the drawn gold shield pickup once loaded */
         var shieldImg = new Image(),
           shieldReady = false;
@@ -1594,6 +2137,22 @@
             if (p && p.catch) p.catch(function () {});
           } catch (e) {}
         }
+        /* next-level sound: a dedicated audio clip played when the player clears a
+   level and advances. Volume is trimmed so it sits level with the other
+   effects instead of spiking over them */
+        var nextLevelSfx = new Audio(
+          "Sounds/next_level.mp3",
+        );
+        nextLevelSfx.preload = "auto";
+        nextLevelSfx.volume = 0.7;
+        function playNextLevelSfx() {
+          if (muted) return;
+          try {
+            nextLevelSfx.currentTime = 0;
+            var p = nextLevelSfx.play();
+            if (p && p.catch) p.catch(function () {});
+          } catch (e) {}
+        }
         /* shield-ran-out sound: a dedicated audio clip played the moment the
    shield power-up expires. Volume is trimmed so it sits level with the
    other effects instead of spiking over them */
@@ -1607,6 +2166,38 @@
           try {
             shieldOutSfx.currentTime = 0;
             var p = shieldOutSfx.play();
+            if (p && p.catch) p.catch(function () {});
+          } catch (e) {}
+        }
+        /* orb-vanish sound: a dedicated audio clip played on the final urchin hit
+   as the orb shatters and fades away. Volume is trimmed so it sits level
+   with the other effects instead of spiking over them */
+        var orbVanishSfx = new Audio(
+          "Sounds/orb_vanish.mp3",
+        );
+        orbVanishSfx.preload = "auto";
+        orbVanishSfx.volume = 0.7;
+        function playOrbVanishSfx() {
+          if (muted) return;
+          try {
+            orbVanishSfx.currentTime = 0;
+            var p = orbVanishSfx.play();
+            if (p && p.catch) p.catch(function () {});
+          } catch (e) {}
+        }
+        /* level-fail sound: a dedicated audio clip played when the level fails
+   (time out or too many urchin hits). Volume is trimmed so it sits level
+   with the other effects instead of spiking over them */
+        var levelFailSfx = new Audio(
+          "Sounds/level_fail.mp3",
+        );
+        levelFailSfx.preload = "auto";
+        levelFailSfx.volume = 0.7;
+        function playLevelFailSfx() {
+          if (muted) return;
+          try {
+            levelFailSfx.currentTime = 0;
+            var p = levelFailSfx.play();
             if (p && p.catch) p.catch(function () {});
           } catch (e) {}
         }
@@ -2115,8 +2706,8 @@
         }
         function placeUrchins(rnd) {
           urchins = [];
-          var count = 1 + Math.round((levelIndex - 1) * 0.67);
-          var spd = 1.35 + 0.11 * (levelIndex - 1);
+          var count = 1 + Math.round((levelIndex - 1) * 0.75);
+          var spd = 1.4 + 0.12 * (levelIndex - 1);
           var exCell = Math.round(exitC.x - 0.5),
             eyCell = Math.round(exitC.y - 0.5);
           var reach = bfsPrev(1, 1),
@@ -2900,6 +3491,11 @@
    as it explores. Panning only ever shows what has already been explored. */
         function revealAround() {
           if (!revealed) return;
+          /* no fog on this level: the whole maze is visible from the start */
+          if (!fogOn) {
+            for (var a = 0; a < revealed.length; a++) revealed[a] = 1;
+            return;
+          }
           revGen++;
           var s = curCell(),
             q = [s.y * cols + s.x],
@@ -2909,7 +3505,9 @@
             k;
           revStamp[q[0]] = revGen;
           revealed[q[0]] = 1;
-          for (d = 0; d < 4; d++) {
+          /* wider reveal radius: 6 rings out instead of 4, so a single send
+     maps a much larger stretch of the maze */
+          for (d = 0; d < 6; d++) {
             var n = q.length;
             for (i = head; i < n; i++) {
               var cur = q[i],
@@ -3022,7 +3620,7 @@
           }
         }
         function drawFog() {
-          if (!revealed) return;
+          if (!revealed || !fogOn) return;
           var fc = hexRgb(theme.bg[2]);
           ctx.fillStyle = "rgba(" + fc[0] + "," + fc[1] + "," + fc[2] + ",0.93)";
           for (var y = 0; y < rows; y++)
@@ -3130,6 +3728,7 @@
             r = cs * R;
           var moving = path && pathIdx < path.length ? 1 : 0;
           var entering = state === "entering";
+          var vanishing = state === "vanishing";
           /* soft rebound: visual-only offset that peaks mid-bounce and settles back */
           if (bounce) {
             var bp = Math.min(bounce.t / bounce.dur, 1),
@@ -3139,17 +3738,26 @@
           }
           /* portal entry: glow, halo and sprite shrink and fade as the orb dives in */
           var ep2 = clamp(enterT / ENTER_DUR, 0, 1);
-          var sc = entering ? Math.max(0.02, Math.pow(1 - ep2, 0.85)) : 1;
-          var al = entering ? clamp(1 - Math.max(0, ep2 - 0.55) / 0.45, 0, 1) : 1;
+          var vp = clamp(vanishT / VANISH_DUR, 0, 1);
+          var sc = entering
+            ? Math.max(0.02, Math.pow(1 - ep2, 0.85))
+            : vanishing
+              ? Math.max(0.02, Math.pow(1 - vp, 0.7))
+              : 1;
+          var al = entering
+            ? clamp(1 - Math.max(0, ep2 - 0.55) / 0.45, 0, 1)
+            : vanishing
+              ? clamp(1 - vp * vp, 0, 1)
+              : 1;
           if (al < 1) ctx.globalAlpha = al;
           /* animated glow: breathing pulse, expanding sonar rings, rotating halo */
-          var pulse = 1 + 0.05 * Math.sin(animT * (entering ? 9 : moving ? 6 : 3.2));
+          var pulse = 1 + 0.05 * Math.sin(animT * (entering ? 9 : vanishing ? 13 : moving ? 6 : 3.2));
           ctx.fillStyle = "rgba(140,240,255,0.16)";
           ctx.beginPath();
           ctx.arc(x, y, r * 1.9 * pulse * sc, 0, 6.283);
           ctx.fill();
           for (var ri = 0; ri < 3; ri++) {
-            var ph = (animT * (entering ? 1.6 : moving ? 0.8 : 0.45) + ri / 3) % 1;
+            var ph = (animT * (entering ? 1.6 : vanishing ? 2.6 : moving ? 0.8 : 0.45) + ri / 3) % 1;
             var rad = r * 1.9 * (1 + ph * 1.5) * sc;
             ctx.strokeStyle = "rgba(140,240,255," + ((1 - ph) * 0.32).toFixed(3) + ")";
             ctx.lineWidth = Math.max(1.2, cs * 0.05 * (1 - ph * 0.7));
@@ -3159,7 +3767,7 @@
           }
           ctx.save();
           ctx.translate(x, y);
-          ctx.rotate(animT * (entering ? 5 : moving ? 1.4 : 0.45));
+          ctx.rotate(animT * (entering ? 5 : vanishing ? 12 : moving ? 1.4 : 0.45));
           ctx.strokeStyle = "rgba(180,250,255,0.45)";
           ctx.lineWidth = Math.max(1.2, cs * 0.04);
           ctx.setLineDash([cs * 0.2, cs * 0.28]);
@@ -3726,6 +4334,12 @@
           buildHowDots();
           setHowSlide(0);
           fitHowPanel();
+          /* icons load after first paint: re-measure once they are in */
+          setTimeout(function () {
+            if (state !== "how") return;
+            sizeHowViewport();
+            fitHowPanel();
+          }, 300);
         }
         /* ---------------- How to Play carousel ---------------- */
         var howIdx = 0,
@@ -3746,6 +4360,16 @@
             howDots.appendChild(d);
           }
         }
+        /* size the carousel viewport to the active slide's content, so a short
+   section never leaves empty space below its rows */
+        function sizeHowViewport() {
+          var secs = howList.querySelectorAll(".howSec");
+          if (!secs.length) return;
+          var sec = secs[howIdx];
+          if (!sec) return;
+          var h = sec.offsetHeight;
+          if (h > 0) howViewport.style.height = h + "px";
+        }
         function setHowSlide(i) {
           if (!howCount) buildHowDots();
           howIdx = clamp(i, 0, howCount - 1);
@@ -3754,6 +4378,7 @@
           for (var k = 0; k < dots.length; k++) dots[k].classList.toggle("on", k === howIdx);
           howPrev.disabled = howIdx <= 0;
           howNext.disabled = howIdx >= howCount - 1;
+          sizeHowViewport();
         }
         howPrev.addEventListener("click", function () {
           haptic("light");
@@ -3994,6 +4619,7 @@
           revealed = new Uint8Array(cols * rows);
           revStamp = new Int32Array(cols * rows);
           revGen = 0;
+          fogOn = levelIndex <= 3;
           player = { x: 1.5, y: 1.5 };
           dirX = 0;
           dirY = 1;
@@ -4009,9 +4635,11 @@
           lastGemT = -9;
           popups.length = 0;
           score = 0;
+          hits = 0;
           shakeT = 0;
           flashT = 0;
           enterT = 0;
+          vanishT = 0;
           orbHidden = false;
           spawnAccum = 0;
           shieldT = 0;
@@ -4056,6 +4684,7 @@
           levelChip.textContent = "Level " + levelIndex + "/" + LEVELS.length;
           updateGemHud();
           updateScoreHud();
+          updateStarHud();
           /* a level the player has never entered is brand new: announce it with
      the "New Level Unlocked!" banner */
           var isNew = !resumed && levelIndex > 1 && !seenLevels[levelIndex];
@@ -4078,6 +4707,9 @@
             rows += '<div class="bRow">Spiky urchins patrol \u2014 time your sends</div>';
             rows += '<div class="bRow">Drag to look around the maze</div>';
           }
+          /* the next-level chime plays on every advance into a level, not only
+     the first time that level is ever seen */
+          if (!resumed && levelIndex > 1) playNextLevelSfx();
           if (isNew) {
             showBanner(
               "New Level Unlocked!",
@@ -4258,9 +4890,9 @@
    a quarter left for 2 — diamonds add score, not stars */
         function starCount() {
           var par = (LEVELS[levelIndex - 1] && LEVELS[levelIndex - 1].time) || 60;
-          if (elapsed <= par * 0.5) return 3;
-          if (elapsed <= par * 0.75) return 2;
-          return 1;
+          var base = elapsed <= par * 0.5 ? 3 : elapsed <= par * 0.75 ? 2 : 1;
+          /* every urchin hit knocks a star off the rating, down to a floor of one */
+          return clamp(base - hits, 1, 3);
         }
         /* portal entry: the orb gets caught by the portal and spirals into its
    center, shrinking and fading, before the level-clear flow fires */
@@ -4282,10 +4914,28 @@
           playPortalSfx();
           haptic("medium");
         }
-        /* timer out: the level fails — the platform shows the retry flow */
-        function failLevel() {
+        /* the last star is lost: the orb shatters and fades away, then the fail
+   banner and sound fire once the vanish animation has played out */
+        function vanishOrb() {
           if (state !== "playing") return;
+          state = "vanishing";
+          timerRunning = false;
+          path = null;
+          bounce = null;
+          bouncePlan = null;
+          panning = false;
+          vanishT = 0;
+          burst(player.x, player.y, 14, ["#ff5a7e", "#ff8296", "#ffd166", "#ffffff"]);
+          playOrbVanishSfx();
+          haptic("hard");
+        }
+        /* timer out: the level fails — the platform shows the retry flow */
+        function failLevel(reason) {
+          if (state !== "playing" && state !== "vanishing") return;
           state = "failed";
+          /* the orb shattered and faded during the vanish animation: keep it gone
+     once the fail banner fires instead of popping back into view */
+          if (reason === "hits") orbHidden = true;
           timerRunning = false;
           path = null;
           bounce = null;
@@ -4295,15 +4945,19 @@
           shakeT = shakeDur;
           flashT = FLASH_DUR;
           burst(player.x, player.y, 12, ["#ff5a7e", "#ff8296", "#ffd166", "#ffffff"]);
-          sfx.zap();
+          playLevelFailSfx();
           haptic("error");
           resumeData = null;
           saveRunState();
-          showBanner(
-            '<img class="tIco" alt="" draggable="false" src="' + WATCH_URL + '">Time\u2019s Up!',
-            "The clock hit 00:00",
-            2200,
-          );
+          if (reason === "hits") {
+            showBanner("Spiked Out!", "The urchins got you", 2200);
+          } else {
+            showBanner(
+              '<img class="tIco" alt="" draggable="false" src="' + WATCH_URL + '">Time\u2019s Up!',
+              "The clock hit 00:00",
+              2200,
+            );
+          }
           report(0);
         }
         function finishWin() {
@@ -4337,7 +4991,6 @@
           }
           resumeData = null;
           saveRunState();
-          sfx.win();
           haptic("success");
           burst(exitC.x, exitC.y, 30, ["#6ff7ff", "#7dffb0", "#ffd166", "#ff7ad9", "#ffffff"]);
           showBanner("Portal Reached!", "+" + fmtScore(clearBonus) + " pts", 1800, "portalPop");
@@ -4395,6 +5048,10 @@
         }
         function updateScoreHud() {
           scoreTxt.textContent = fmtScore(score) + " pts";
+        }
+        /* live star rating: three stars, dimming one per urchin hit */
+        function updateStarHud() {
+          starTxt.innerHTML = starHtml(clamp(3 - hits, 1, 3));
         }
         function bumpScore() {
           scoreChip.classList.remove("bump");
@@ -4879,7 +5536,11 @@
                     haptic("medium");
                     relocateUrchin(uu);
                   } else {
-                    knockback();
+                    /* each hit costs a star; the fourth ends the attempt */
+                    hits++;
+                    updateStarHud();
+                    if (hits >= MAX_HITS) vanishOrb();
+                    else knockback();
                   }
                   break;
                 }
@@ -4895,7 +5556,7 @@
               if (Lt && elapsed >= Lt.time) failLevel();
             }
           } else if (state === "entering") {
-          /* portal-entry animation: spiral the orb into the portal center while it
+            /* portal-entry animation: spiral the orb into the portal center while it
      shrinks and fades, suck in its trail, then fire the level-clear flow */
             enterT += dt;
             var ep3 = clamp(enterT / ENTER_DUR, 0, 1),
@@ -4925,12 +5586,16 @@
               });
             }
             if (enterT >= ENTER_DUR) finishWin();
+          } else if (state === "vanishing") {
+            /* the orb shatters and fades away, then the fail flow fires */
+            vanishT += dt;
+            if (vanishT >= VANISH_DUR) failLevel("hits");
           }
           /* dynamic zoom: push in while the orb glides, pull back when it rests so
      players get a read on the maze around them between moves; the portal
      entry keeps the camera pushed in on the portal for the dive */
           if (grid) {
-            var tCs = state === "entering" ? csIn : moved ? csIn : csOut;
+            var tCs = state === "entering" || state === "vanishing" ? csIn : moved ? csIn : csOut;
             /* while the player pans, the camera is theirs: no follow, no zoom */
             if (!panning) {
               if (Math.abs(tCs - cs) > 0.05) cs += (tCs - cs) * Math.min(1, dt * 3);
@@ -5000,7 +5665,10 @@
         window.addEventListener("resize", function () {
           applySafe();
           layout();
-          if (state === "how") fitHowPanel();
+          if (state === "how") {
+            sizeHowViewport();
+            fitHowPanel();
+          }
         });
 
         function boot() {
@@ -5052,6 +5720,15 @@
                 try {
                   shieldOutSfx.pause();
                 } catch (e) {}
+                try {
+                  nextLevelSfx.pause();
+                } catch (e) {}
+                try {
+                  levelFailSfx.pause();
+                } catch (e) {}
+                try {
+                  orbVanishSfx.pause();
+                } catch (e) {}
               }
             });
             window.RemixSDK.onPlay(function (d) {
@@ -5083,7 +5760,10 @@
                 applySafe();
                 layout();
               }
-              if (state === "how") fitHowPanel();
+              if (state === "how") {
+                sizeHowViewport();
+                fitHowPanel();
+              }
             });
           } catch (e) {}
           restored = true;
